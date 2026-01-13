@@ -1,0 +1,14 @@
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #222; /* 网页背景深灰 */
+  overflow: hidden;
+}
+
+#app {
+  box-shadow: 0 0 20px rgba(0,0,0,0.5); /* 给游戏加个阴影 */
+}
