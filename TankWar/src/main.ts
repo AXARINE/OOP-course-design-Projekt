@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GameScene } from './scenes/Gamescene';
+import { GameScene } from './scenes/GameScene_new';
 import './style.css'; // 确保你目录下有 style.css，如果没有可以删掉这行
 
 const config: Phaser.Types.Core.GameConfig = {
