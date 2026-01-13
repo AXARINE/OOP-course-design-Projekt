@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双人俄罗斯方块</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        
+        .game-container {
+            text-align: center;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .player-panel {
+            display: inline-block;
+            width: 350px;
+        }
+        
+        .game-board {
+            width: 300px;
+            height: 600px;
+            border: 2px solid #333;
+            background-color: #111;
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(20, 1fr);
+            gap: 1px;
+            margin: 0 auto;
+        }
+        
+        .cell {
+            background-color: #222;
+            border-radius: 2px;
+        }
+        
+        .filled {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .info-panel {
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        .score {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .controls {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .powerups {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .target-indicator {
+            color: red;
+            font-weight: bold;
+        }
+        
+        .powerup-list {
+            margin-top: 5px;
+        }
+        
+        .powerup-item {
+            margin: 2px 0;
+        }
+        
+        .next-piece {
+            width: 120px;
+            height: 120px;
+            border: 2px solid #333;
+            background-color: #111;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 1px;
+            margin: 10px auto;
+        }
+        
+        .game-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .start-button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .start-button:hover {
+            background-color: #45a049;
+        }
+        
+        .player-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .debug-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 15px;
+            font-size: 14px;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 100;
+        }
+        
+        .debug-button:hover {
+            background-color: #ff5252;
+        }
+        
+        .debug-panel {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.95);
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            display: none;
+        }
+        
+        .debug-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .debug-btn {
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .debug-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .debug-section {
+            margin-bottom: 15px;
+        }
+        
+        .debug-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .close-debug {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .time-limit-control {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .time-limit-input {
+            padding: 5px;
+            width: 60px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="game-title">双人俄罗斯方块</h1>
+    </div>
+
+    <button class="debug-button" onclick="toggleDebugPanel()">Debug</button>
+    
+    <div id="debugPanel" class="debug-panel">
+        <button class="close-debug" onclick="toggleDebugPanel()">×</button>
+        <h3>Debug 模式</h3>
+        <div class="debug-section">
+            <h3>玩家1道具</h3>
+            <div class="debug-controls">
+                <button class="debug-btn" onclick="givePowerupToPlayer(1, 'speed_boost')">加速</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(1, 'random_clear')">清行</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(1, 'scramble')">打乱</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(1, 'force_i')">I型</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(1, 'background_change')">变色</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(1, 'invert_blocks')">消除</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(1, 'invisibility')">隐形</button>
+            </div>
+        </div>
+        <div class="debug-section">
+            <h3>玩家2道具</h3>
+            <div class="debug-controls">
+                <button class="debug-btn" onclick="givePowerupToPlayer(2, 'speed_boost')">加速</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(2, 'random_clear')">清行</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(2, 'scramble')">打乱</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(2, 'force_i')">I型</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(2, 'background_change')">变色</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(2, 'invert_blocks')">消除</button>
+                <button class="debug-btn" onclick="givePowerupToPlayer(2, 'invisibility')">隐形</button>
+            </div>
+        </div>
+        <div class="debug-section">
+            <h3>游戏控制</h3>
+            <div class="debug-controls">
+                <button class="debug-btn" onclick="resetGame()">重置游戏</button>
+                <button class="debug-btn" onclick="toggleDebugPanel()">关闭</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="gameArea">
+        <div class="time-limit-control">
+            <label for="timeLimitEnabled">启用时间限制:</label>
+            <input type="checkbox" id="timeLimitEnabled">
+            <label for="timeLimitInput">限时(秒):</label>
+            <input type="number" id="timeLimitInput" class="time-limit-input" min="10" value="180" max="3600">
+        </div>
+        <button class="start-button" onclick="startGame()">开始游戏</button>
+    </div>
+    
+    <div id="gameContent" style="display: none; flex-direction: row; justify-content: space-around; width: 100%;">
+        <div class="player-panel">
+            <div class="player-title">玩家 1</div>
+            <div id="board1" class="game-board"></div>
+            <div class="info-panel">
+                <div class="score">得分: <span id="score1">0</span></div>
+                <div class="level">等级: <span id="level1">1</span></div>
+                <div class="lines">消除行数: <span id="lines1">0</span></div>
+                <div class="next-piece" id="nextPiece1"></div>
+                <div class="controls">
+                    控制: A/D 或 ←/→ - 左右移动<br>
+                    S 或 ↓ - 下降, W 或 ↑ - 旋转
+                </div>
+                <div class="powerups">
+                    道具: F - 使用, G - 切换目标
+                    <div class="powerup-list">
+                        <div class="powerup-item">道具: <span id="powerup1">无</span></div>
+                        <div class="powerup-item target-indicator">目标: <span id="target1">自己</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="player-panel">
+            <div class="player-title">玩家 2</div>
+            <div id="board2" class="game-board"></div>
+            <div class="info-panel">
+                <div class="score">得分: <span id="score2">0</span></div>
+                <div class="level">等级: <span id="level2">1</span></div>
+                <div class="lines">消除行数: <span id="lines2">0</span></div>
+                <div class="next-piece" id="nextPiece2"></div>
+                <div class="controls">
+                    控制: ←/→ - 左右移动<br>
+                    ↓ - 下降, ↑ - 旋转
+                </div>
+                <div class="powerups">
+                    道具: 小键盘0 - 使用, 小键盘1 - 切换目标
+                    <div class="powerup-list">
+                        <div class="powerup-item">道具: <span id="powerup2">无</span></div>
+                        <div class="powerup-item target-indicator">目标: <span id="target2">自己</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 在脚本开头添加游戏状态枚举
+        const GAME_STATE = {
+            READY: 'ready',
+            PLAYING: 'playing',
+            PAUSED: 'paused',
+            GAME_OVER: 'game_over'
+        };
+
+        // 游戏配置常量
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = 20;
+        const EMPTY_CELL = 0;
+        
+        // 方块形状定义
+        const SHAPES = [
+            [[1, 1, 1, 1]], // I型方块：四个方块排成一行
+            [[1, 1, 1], [0, 1, 0]], // T型方块：三个方块排成一行，中间下方一个方块
+            [[1, 1, 1], [1, 0, 0]], // L型方块：三个方块排成一行，左下方一个方块
+            [[1, 1, 1], [0, 0, 1]], // J型方块：三个方块排成一行，右下方一个方块
+            [[1, 1], [1, 1]], // O型方块：2x2正方形
+            [[0, 1, 1], [1, 1, 0]], // S型方块：两个方块水平排列，上方右侧一个方块
+            [[1, 1, 0], [0, 1, 1]]  // Z型方块：两个方块水平排列，上方左侧一个方块
+        ];
+        
+        // 方块颜色定义
+        const COLORS = [
+            null,           // 0 - 空白方块无颜色
+            '#FF0D72',      // 1 - I型方块：粉色
+            '#0DC2FF',      // 2 - T型方块：蓝色
+            '#0DFF72',      // 3 - L型方块：绿色
+            '#F538FF',      // 4 - J型方块：紫色
+            '#FFB10D',      // 5 - O型方块：橙色
+            '#FF206E',      // 6 - S型方块：红色
+            '#24FF0D'       // 7 - Z型方块：青绿色
+        ];
+        
+        // 道具类型枚举
+        const POWERUP_TYPES = {
+            SPEED_BOOST: 'speed_boost',     // 加速道具：加快下落速度4倍，持续5秒
+            RANDOM_CLEAR: 'random_clear',   // 清行道具：随机消除两行
+            SCRAMBLE: 'scramble',           // 打乱道具：打乱最上方三层
+            FORCE_I: 'force_i',             // I型道具：将下一个方块改为I型
+            BACKGROUND_CHANGE: 'background_change', // 变色道具：所有方块变为同一颜色，持续10秒
+            INVERT_BLOCKS: 'invert_blocks'            // 消除道具：随机消除两个2x2区域内的方块（确保至少消除一个）
+        };
+
+        // 道具管理系统
+        class PowerupManager {
+            constructor(player) {
+                this.player = player;
+                this.powerup = null;
+                this.targetPlayer = player; // 默认对自己使用
+            }
+
+            // 获取道具
+            getPowerup(type) {
+                this.powerup = type;
+                if (this.player.powerupElement) {
+                    this.player.powerupElement.textContent = this.getPowerupName(type);
+                }
+            }
+
+            // 直接使用道具（立即生效）
+            useImmediatePowerup(type, target) {
+                switch(type) {
+                    case POWERUP_TYPES.SPEED_BOOST:
+                        this.speedBoost(target);
+                        break;
+                    case POWERUP_TYPES.RANDOM_CLEAR:
+                        this.randomClear(target);
+                        break;
+                    case POWERUP_TYPES.SCRAMBLE:
+                        this.scramble(target);
+                        break;
+                    case POWERUP_TYPES.FORCE_I:
+                        this.forceI(target);
+                        break;
+                    case POWERUP_TYPES.BACKGROUND_CHANGE:
+                        this.backgroundChange(target);
+                        break;
+                    case POWERUP_TYPES.INVERT_BLOCKS:
+                        this.invertBlocks(target);
+                        break;
+                }
+            }
+
+            // 获取道具名称
+            getPowerupName(type) {
+                switch(type) {
+                    case POWERUP_TYPES.SPEED_BOOST: return "加速";
+                    case POWERUP_TYPES.RANDOM_CLEAR: return "清行";
+                    case POWERUP_TYPES.SCRAMBLE: return "打乱";
+                    case POWERUP_TYPES.FORCE_I: return "I型";
+                    case POWERUP_TYPES.BACKGROUND_CHANGE: return "变色"; // 修改说明
+                    case POWERUP_TYPES.INVERT_BLOCKS: return "消除";     // 新增
+                    default: return "无";
+                }
+            }
+
+            // 使用道具
+            usePowerup() {
+                if (!this.powerup) return;
+
+                const target = this.targetPlayer;
+
+                switch(this.powerup) {
+                    case POWERUP_TYPES.SPEED_BOOST:
+                        this.speedBoost(target);
+                        break;
+                    case POWERUP_TYPES.RANDOM_CLEAR:
+                        this.randomClear(target);
+                        break;
+                    case POWERUP_TYPES.SCRAMBLE:
+                        this.scramble(target); // 这个方法需要修改
+                        break;
+                    case POWERUP_TYPES.FORCE_I:
+                        this.forceI(target);
+                        break;
+                    case POWERUP_TYPES.BACKGROUND_CHANGE: // 修改
+                        this.backgroundChange(target);
+                        break;
+                    case POWERUP_TYPES.INVERT_BLOCKS: // 新增
+                        this.invertBlocks(target);
+                        break;
+                }
+
+                // 使用完后清空道具
+                this.powerup = null;
+                if (this.player.powerupElement) {
+                    this.player.powerupElement.textContent = "无";
+                }
+            }
+
+            // 加快下落速度4倍5s
+            speedBoost(target) {
+                // 临时保存原始下落间隔
+                if (!target.originalDropInterval) {
+                    target.originalDropInterval = target.dropInterval;
+                }
+
+                // 设置4倍速度（间隔变为原来的1/4）
+                target.dropInterval = target.dropInterval / 4;
+
+                // 5秒后恢复原速度
+                if (!target.activeEffects) target.activeEffects = {};
+                target.activeEffects['speed_boost'] = setTimeout(() => {
+                    target.dropInterval = target.originalDropInterval;
+                    if (target.activeEffects && target.activeEffects['speed_boost']) {
+                        clearTimeout(target.activeEffects['speed_boost']);
+                        delete target.activeEffects['speed_boost'];
+                    }
+                }, 5000);
+            }
+
+            // 随机消除两行
+            randomClear(target) {
+                // 找出至少有一个已下落方块的行
+                const rowsWithBlocks = [];
+                for (let row = 0; row < BOARD_HEIGHT; row++) {
+                    if (target.board[row].some(cell => cell !== EMPTY_CELL)) {
+                        rowsWithBlocks.push(row);
+                    }
+                }
+
+                if (rowsWithBlocks.length === 0) {
+                    // 如果没有包含方块的行，则不执行任何操作
+                    return;
+                }
+
+                // 随机选择一行进行清除
+                const randomRowIndex = Math.floor(Math.random() * rowsWithBlocks.length);
+                const rowToClear = rowsWithBlocks[randomRowIndex];
+
+                // 添加爆炸特效
+                this.createExplosionEffect(target, rowToClear, null);
+
+                // 清除该行
+                for (let col = 0; col < BOARD_WIDTH; col++) {
+                    target.board[rowToClear][col] = EMPTY_CELL;
+                }
+
+                // 上方所有行下沉
+                for (let r = rowToClear; r > 0; r--) {
+                    target.board[r] = [...target.board[r - 1]];
+                }
+
+                // 顶部添加新行
+                target.board[0] = Array(BOARD_WIDTH).fill(EMPTY_CELL);
+
+                // 更新显示
+                target.updateDisplay();
+            }
+
+            // 打乱最上方三层（数量不变）
+            scramble(target) {
+                // 找到最上方三层有方块的行
+                let firstRow = -1;
+                let secondRow = -1;
+                let thirdRow = -1; // 第三行
+
+                for (let row = 0; row < BOARD_HEIGHT; row++) {
+                    if (target.board[row].some(cell => cell !== EMPTY_CELL)) {
+                        if (firstRow === -1) {
+                            firstRow = row;
+                        } else if (secondRow === -1) {
+                            secondRow = row;
+                        } else if (thirdRow === -1) { // 记录第三行
+                            thirdRow = row;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                // 如果只有一行或两行，第三行设为下一行（如果在范围内）
+                if (firstRow !== -1 && secondRow !== -1 && thirdRow === -1) {
+                    thirdRow = secondRow + 1 < BOARD_HEIGHT ? secondRow + 1 : -1;
+                }
+
+                if (firstRow !== -1 && secondRow === -1) {
+                    secondRow = firstRow + 1 < BOARD_HEIGHT ? firstRow + 1 : -1;
+                    if (secondRow !== -1) {
+                        thirdRow = secondRow + 1 < BOARD_HEIGHT ? secondRow + 1 : -1;
+                    }
+                }
+
+                // 执行打乱操作
+                if (firstRow !== -1 && secondRow !== -1 && thirdRow !== -1) { // 三行都有方块
+                    // 收集这三行的所有方块
+                    const blocks = [];
+
+                    for (let row = firstRow; row <= thirdRow && row < BOARD_HEIGHT; row++) {
+                        for (let col = 0; col < BOARD_WIDTH; col++) {
+                            if (target.board[row][col] !== EMPTY_CELL) {
+                                blocks.push(target.board[row][col]);
+                            }
+                        }
+                    }
+
+                    // 清空这三行
+                    for (let row = firstRow; row <= thirdRow && row < BOARD_HEIGHT; row++) {
+                        for (let col = 0; col < BOARD_WIDTH; col++) {
+                            target.board[row][col] = EMPTY_CELL;
+                        }
+                    }
+
+                    // 随机将方块重新分配到这三行
+                    for (const blockColor of blocks) {
+                        let placed = false;
+                        // 尝试多次放置，避免无限循环
+                        let attempts = 0;
+                        const maxAttempts = 50;
+
+                        while (!placed && attempts < maxAttempts) {
+                            const randRow = firstRow + Math.floor(Math.random() * 3); // 在三行中随机选择
+                            const randCol = Math.floor(Math.random() * BOARD_WIDTH);
+
+                            if (target.board[randRow][randCol] === EMPTY_CELL) {
+                                target.board[randRow][randCol] = blockColor;
+                                placed = true;
+                            }
+                            attempts++;
+                        }
+
+                        // 如果经过多次尝试仍未放置成功，就放在第一个可用位置
+                        if (!placed) {
+                            // 寻找第一个空位
+                            for (let row = firstRow; row <= thirdRow && row < BOARD_HEIGHT; row++) {
+                                for (let col = 0; col < BOARD_WIDTH; col++) {
+                                    if (target.board[row][col] === EMPTY_CELL) {
+                                        target.board[row][col] = blockColor;
+                                        placed = true;
+                                        break;
+                                    }
+                                }
+                                if (placed) break;
+                            }
+                        }
+                    }
+                }
+                // 如果只有两行有方块
+                else if (firstRow !== -1 && secondRow !== -1) {
+                    // 收集这两行的所有方块
+                    const blocks = [];
+
+                    for (let row = firstRow; row <= secondRow && row < BOARD_HEIGHT; row++) {
+                        for (let col = 0; col < BOARD_WIDTH; col++) {
+                            if (target.board[row][col] !== EMPTY_CELL) {
+                                blocks.push(target.board[row][col]);
+                            }
+                        }
+                    }
+
+                    // 清空这两行
+                    for (let row = firstRow; row <= secondRow && row < BOARD_HEIGHT; row++) {
+                        for (let col = 0; col < BOARD_WIDTH; col++) {
+                            target.board[row][col] = EMPTY_CELL;
+                        }
+                    }
+
+                    // 随机将方块重新分配到这两行
+                    for (const blockColor of blocks) {
+                        let placed = false;
+                        // 尝试多次放置，避免无限循环
+                        let attempts = 0;
+                        const maxAttempts = 50;
+
+                        while (!placed && attempts < maxAttempts) {
+                            const randRow = Math.random() < 0.5 ? firstRow : secondRow;
+                            const randCol = Math.floor(Math.random() * BOARD_WIDTH);
+
+                            if (target.board[randRow][randCol] === EMPTY_CELL) {
+                                target.board[randRow][randCol] = blockColor;
+                                placed = true;
+                            }
+                            attempts++;
+                        }
+
+                        // 如果经过多次尝试仍未放置成功，就放在第一个可用位置
+                        if (!placed) {
+                            // 寻找第一个空位
+                            for (let row = firstRow; row <= secondRow && row < BOARD_HEIGHT; row++) {
+                                for (let col = 0; col < BOARD_WIDTH; col++) {
+                                    if (target.board[row][col] === EMPTY_CELL) {
+                                        target.board[row][col] = blockColor;
+                                        placed = true;
+                                        break;
+                                    }
+                                }
+                                if (placed) break;
+                            }
+                        }
+                    }
+                }
+                // 如果只有一行，也进行处理
+                else if (firstRow !== -1) {
+                    // 收集这一行的所有方块
+                    const blocks = [];
+                    for (let col = 0; col < BOARD_WIDTH; col++) {
+                        if (target.board[firstRow][col] !== EMPTY_CELL) {
+                            blocks.push(target.board[firstRow][col]);
+                        }
+                    }
+
+                    // 清空这一行
+                    for (let col = 0; col < BOARD_WIDTH; col++) {
+                        target.board[firstRow][col] = EMPTY_CELL;
+                    }
+
+                    // 随机将方块重新分配到这一行
+                    for (const blockColor of blocks) {
+                        let placed = false;
+                        let attempts = 0;
+                        const maxAttempts = 20;
+
+                        while (!placed && attempts < maxAttempts) {
+                            const randCol = Math.floor(Math.random() * BOARD_WIDTH);
+
+                          if (target.board[firstRow][randCol] === EMPTY_CELL) {
+                                target.board[firstRow][randCol] = blockColor;
+                                placed = true;
+                            }
+                            attempts++;
+                        }
+
+                        // 如果放置失败，放在第一个空位
+                        if (!placed) {
+                            for (let col = 0; col < BOARD_WIDTH; col++) {
+                                if (target.board[firstRow][col] === EMPTY_CELL) {
+                                    target.board[firstRow][col] = blockColor;
+                                    placed = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                target.updateDisplay();
+            }
+
+            // 将下一个方块改为I型
+            forceI(target) {
+                // 创建一个I型方块
+                target.nextPiece = {
+                    shape: SHAPES[0], // I型方块
+                    color: COLORS[1], // I型颜色
+                    x: Math.floor(BOARD_WIDTH / 2) - Math.floor(SHAPES[0][0].length / 2),
+                    y: 0
+                };
+
+                // 更新下一个方块的显示
+                target.drawNextPiece();
+            }
+
+            // 切换道具目标
+            toggleTarget(otherPlayer) {
+                if (this.targetPlayer === this.player) {
+                    this.targetPlayer = otherPlayer;
+                    if (this.player.targetElement) {
+                        this.player.targetElement.textContent = "对手";
+                    }
+                } else {
+                    this.targetPlayer = this.player;
+                    if (this.player.targetElement) {
+                        this.player.targetElement.textContent = "自己";
+                    }
+                }
+            }
+
+            // 新增：使背景板颜色变为数量最多的方块颜色，随机消除两个2x2区域内的方块（确保至少消除一个），操作反转
+            backgroundChange(target) {
+                // 1. 随机选择一种颜色
+                const randomColorIndex = Math.floor(Math.random() * (COLORS.length - 1)) + 1; // 排除null颜色
+                
+                // 2. 将所有固定在游戏板上的方块变为随机选择的颜色
+                for (let row = 0; row < BOARD_HEIGHT; row++) {
+                    for (let col = 0; col < BOARD_WIDTH; col++) {
+                        if (target.board[row][col] !== EMPTY_CELL) {
+                            target.board[row][col] = randomColorIndex;
+                        }
+                    }
+                }
+                
+                // 3. 同时改变当前下落方块的颜色
+                if (target.currentPiece) {
+                    // 保存原始颜色以便后续恢复
+                    if (!target.currentPiece.originalColor) {
+                        target.currentPiece.originalColor = target.currentPiece.color;
+                    }
+                    target.currentPiece.color = COLORS[randomColorIndex];
+                }
+
+                // 4. 修改背景板颜色
+                target.boardElement.style.backgroundColor = COLORS[randomColorIndex];
+                
+                // 设置定时器，每0.5秒改变一次颜色，持续10秒
+                if (!target.activeEffects) target.activeEffects = {};
+                
+                // 保存上一次的颜色索引
+                let lastColorIndex = randomColorIndex;
+                
+                // 创建一个函数来处理颜色变化
+                const changeColorsPeriodically = () => {
+                    let newColorIndex;
+                    // 确保新颜色与上一次颜色不同
+                    do {
+                        newColorIndex = Math.floor(Math.random() * (COLORS.length - 1)) + 1;
+                    } while (newColorIndex === lastColorIndex && COLORS.length > 2); // 如果颜色种类大于2种，确保不重复
+                    
+                    // 改变固定方块的颜色
+                    for (let row = 0; row < BOARD_HEIGHT; row++) {
+                        for (let col = 0; col < BOARD_WIDTH; col++) {
+                            if (target.board[row][col] !== EMPTY_CELL) {
+                                target.board[row][col] = newColorIndex;
+                            }
+                        }
+                    }
+                    
+                    // 改变当前下落方块的颜色
+                    if (target.currentPiece) {
+                        target.currentPiece.color = COLORS[newColorIndex];
+                    }
+                    
+                    // 改变背景颜色
+                    target.boardElement.style.backgroundColor = COLORS[newColorIndex];
+                    
+                    // 更新最后使用的颜色索引
+                    lastColorIndex = newColorIndex;
+                    
+                    // 更新显示
+                    target.updateDisplay();
+                };
+                
+                // 每0.5秒执行一次颜色变化
+                target.activeEffects['color_changer'] = setInterval(changeColorsPeriodically, 500);
+                
+                // 10秒后停止颜色变化并恢复原有颜色和背景
+                target.activeEffects['background_change'] = setTimeout(() => {
+                    // 停止颜色变化
+                    if (target.activeEffects && target.activeEffects['color_changer']) {
+                        clearInterval(target.activeEffects['color_changer']);
+                        delete target.activeEffects['color_changer'];
+                    }
+                    
+                    // 恢复背景颜色
+                    target.boardElement.style.backgroundColor = '#111';
+                    
+                    // 如果有当前方块，恢复其原始颜色
+                    if (target.currentPiece && target.currentPiece.originalColor) {
+                        target.currentPiece.color = target.currentPiece.originalColor;
+                        delete target.currentPiece.originalColor;
+                    }
+                    
+                    if (target.activeEffects && target.activeEffects['background_change']) {
+                        clearTimeout(target.activeEffects['background_change']);
+                        delete target.activeEffects['background_change'];
+                    }
+                }, 10000); // 10秒后恢复
+
+                target.updateDisplay();
+            }
+
+            // 新增：随机消除两个2x2区域内的方块（确保至少消除一个）
+            invertBlocks(target) {
+                let eliminatedAny = false;
+
+                // 消除第一个2x2区域
+                eliminatedAny = this.eliminate2x2Region(target) || eliminatedAny;
+
+                // 消除第二个2x2区域
+                eliminatedAny = this.eliminate2x2Region(target) || eliminatedAny;
+
+                // 如果没有消除任何方块，强制消除一个随机方块
+                if (!eliminatedAny) {
+                    this.eliminateRandomBlock(target);
+                }
+
+                target.updateDisplay();
+            }
+
+            // 辅助方法：消除一个2x2区域
+            eliminate2x2Region(target) {
+                let eliminatedAny = false;
+
+                // 随机选择一个可以放置2x2区域的位置
+                const rowStart = Math.floor(Math.random() * (BOARD_HEIGHT - 1)); // -1确保不会超出边界
+                const colStart = Math.floor(Math.random() * (BOARD_WIDTH - 1)); // -1确保不会超出边界
+
+                // 添加爆炸特效
+                this.createExplosionEffect(target, rowStart, colStart);
+
+                // 消除2x2区域中的方块
+                for (let r = rowStart; r < rowStart + 2; r++) {
+                    for (let c = colStart; c < colStart + 2; c++) {
+                        if (r < BOARD_HEIGHT && c < BOARD_WIDTH && target.board[r][c] !== EMPTY_CELL) {
+                            target.board[r][c] = EMPTY_CELL;
+                            eliminatedAny = true;
+                        }
+                    }
+                }
+
+                return eliminatedAny;
+            }
+
+            // 辅助方法：消除一个随机方块
+            eliminateRandomBlock(target) {
+                // 找到所有有方块的位置
+                const filledCells = [];
+                for (let row = 0; row < BOARD_HEIGHT; row++) {
+                    for (let col = 0; col < BOARD_WIDTH; col++) {
+                        if (target.board[row][col] !== EMPTY_CELL) {
+                            filledCells.push([row, col]);
+                        }
+                    }
+                }
+
+                // 如果有方块，则随机消除一个
+                if (filledCells.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * filledCells.length);
+                    const [row, col] = filledCells[randomIndex];
+                    target.board[row][col] = EMPTY_CELL;
+                    
+                    // 添加爆炸特效
+                    this.createExplosionEffect(target, row, col);
+                }
+            }
+            
+            // 创建爆炸特效
+            createExplosionEffect(target, row, col) {
+                // 如果指定了具体行列，只对该位置进行特效
+                if (row !== null && col !== null) {
+                    // 创建临时爆炸元素
+                    const cellId = `${target.boardElement.id}-cell-${row}-${col}`;
+                    const cell = document.getElementById(cellId);
+                    if (cell) {
+                        // 添加爆炸样式
+                        cell.style.boxShadow = '0 0 10px 5px #ff9900, 0 0 20px 10px #ff3300';
+                        cell.style.transition = 'all 0.2s ease';
+                        
+                        // 200ms后移除特效
+                        setTimeout(() => {
+                            cell.style.boxShadow = '';
+                            cell.style.transition = '';
+                        }, 200);
+                    }
+                } else if (row !== null) {
+                    // 如果只指定了行，对整行进行特效
+                    for (let c = 0; c < BOARD_WIDTH; c++) {
+                        const cellId = `${target.boardElement.id}-cell-${row}-${c}`;
+                        const cell = document.getElementById(cellId);
+                        if (cell) {
+                            // 添加爆炸样式
+                            cell.style.boxShadow = '0 0 10px 5px #ff9900, 0 0 20px 10px #ff3300';
+                            cell.style.transition = 'all 0.2s ease';
+                            
+                            // 200ms后移除特效
+                            setTimeout(() => {
+                                cell.style.boxShadow = '';
+                                cell.style.transition = '';
+                            }, 200);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 定义玩家对象
+        class Player {
+            constructor(boardId, scoreId, levelId, linesId, nextPieceId) {
+                this.board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(EMPTY_CELL));
+                this.currentPiece = null;
+                this.nextPiece = null;
+                this.score = 0;
+                this.level = 1;
+                this.linesCleared = 0;
+                this.dropInterval = 1000; // 初始下落间隔（毫秒）
+                this.lastTime = 0;
+                this.dropCounter = 0;
+                this.gameState = GAME_STATE.READY;
+                this.gameLoopId = null;
+
+                // 道具系统相关
+                this.powerupManager = new PowerupManager(this);
+                this.powerup = null;  // 添加这个属性初始化
+                this.activeEffects = {}; // 存储激活的效果
+
+                // 添加DOM元素引用
+                this.boardElement = document.getElementById(boardId);
+                this.scoreElement = document.getElementById(scoreId);
+                this.levelElement = document.getElementById(levelId);
+                this.linesElement = document.getElementById(linesId);
+                this.nextPieceElement = document.getElementById(nextPieceId);
+                this.powerupElement = document.getElementById(`powerup${boardId.slice(-1)}`);
+                this.targetElement = document.getElementById(`target${boardId.slice(-1)}`);
+            }
+            
+            // 初始化游戏板
+            initBoard() {
+                // 创建网格单元格
+                for (let row = 0; row < BOARD_HEIGHT; row++) {
+                    for (let col = 0; col < BOARD_WIDTH; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.id = `${this.boardElement.id}-cell-${row}-${col}`;
+                        this.boardElement.appendChild(cell);
+                    }
+                }
+                
+                // 初始化下一个方块预览区域
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.id = `${this.nextPieceElement.id}-cell-${row}-${col}`;
+                        this.nextPieceElement.appendChild(cell);
+                    }
+                }
+            }
+            
+            // 绘制游戏板
+            drawBoard() {
+                for (let row = 0; row < BOARD_HEIGHT; row++) {
+                    for (let col = 0; col < BOARD_WIDTH; col++) {
+                        const cell = document.getElementById(`${this.boardElement.id}-cell-${row}-${col}`);
+                        if (this.board[row][col] && this.board[row][col] !== -1) { // -1表示透明方块
+                            cell.style.backgroundColor = COLORS[this.board[row][col]];
+                            cell.classList.add('filled');
+                        } else if (this.board[row][col] === -1) { // 透明方块
+                            cell.style.backgroundColor = 'transparent';
+                            cell.classList.add('filled');
+                        } else {
+                            cell.style.backgroundColor = '';
+                            cell.classList.remove('filled');
+                        }
+                    }
+                }
+            }
+            
+            // 绘制当前方块
+            drawCurrentPiece() {
+                if (!this.currentPiece) return;
+                
+                for (let row = 0; row < this.currentPiece.shape.length; row++) {
+                    for (let col = 0; col < this.currentPiece.shape[row].length; col++) {
+                        if (this.currentPiece.shape[row][col]) {
+                            const boardRow = this.currentPiece.y + row;
+                            const boardCol = this.currentPiece.x + col;
+                            
+                            if (boardRow >= 0 && boardRow < BOARD_HEIGHT && boardCol >= 0 && boardCol < BOARD_WIDTH) {
+                                const cell = document.getElementById(`${this.boardElement.id}-cell-${boardRow}-${boardCol}`);
+                                cell.style.backgroundColor = this.currentPiece.color;
+                                cell.classList.add('filled');
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 绘制下一个方块
+            drawNextPiece() {
+                // 清空预览区域
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        const cell = document.getElementById(`${this.nextPieceElement.id}-cell-${row}-${col}`);
+                        cell.style.backgroundColor = '';
+                        cell.classList.remove('filled');
+                    }
+                }
+                
+                // 绘制下一个方块
+                if (this.nextPiece) {
+                    const offsetX = Math.floor((4 - this.nextPiece.shape[0].length) / 2);
+                    const offsetY = Math.floor((4 - this.nextPiece.shape.length) / 2);
+                    
+                    for (let row = 0; row < this.nextPiece.shape.length; row++) {
+                        for (let col = 0; col < this.nextPiece.shape[row].length; col++) {
+                            if (this.nextPiece.shape[row][col]) {
+                                const cell = document.getElementById(
+                                    `${this.nextPieceElement.id}-cell-${offsetY + row}-${offsetX + col}`
+                                );
+                                if (cell) {
+                                    cell.style.backgroundColor = this.nextPiece.color;
+                                    cell.classList.add('filled');
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 创建新方块
+            createNewPiece() {
+                const shapeIndex = Math.floor(Math.random() * SHAPES.length);
+                return {
+                    shape: SHAPES[shapeIndex],
+                    color: COLORS[shapeIndex + 1],
+                    x: Math.floor(BOARD_WIDTH / 2) - Math.floor(SHAPES[shapeIndex][0].length / 2),
+                    y: 0
+                };
+            }
+            
+            // 检查碰撞
+            checkCollision(x, y, shape) {
+                for (let row = 0; row < shape.length; row++) {
+                    for (let col = 0; col < shape[row].length; col++) {
+                        if (!shape[row][col]) continue;
+                        
+                        const newX = x + col;
+                        const newY = y + row;
+                        
+                        if (
+                            newX < 0 || 
+                            newX >= BOARD_WIDTH || 
+                            newY >= BOARD_HEIGHT ||
+                            (newY >= 0 && this.board[newY][newX])
+                        ) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            
+            // 固定方块到游戏板上
+            placePiece() {
+                for (let row = 0; row < this.currentPiece.shape.length; row++) {
+                    for (let col = 0; col < this.currentPiece.shape[row].length; col++) {
+                        if (this.currentPiece.shape[row][col]) {
+                            const boardRow = this.currentPiece.y + row;
+                            const boardCol = this.currentPiece.x + col;
+                            
+                            if (boardRow >= 0) { // 只有在可见区域才放置
+                                this.board[boardRow][boardCol] = this.getColorIndex(this.currentPiece.color);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 获取颜色索引
+            getColorIndex(color) {
+                return COLORS.indexOf(color);
+            }
+            
+            // 清除完整行
+            clearLines() {
+                let linesClearedThisTurn = 0;
+                
+                for (let row = BOARD_HEIGHT - 1; row >= 0; row--) {
+                    if (this.board[row].every(cell => cell !== EMPTY_CELL)) {
+                        // 移除这一行
+                        this.board.splice(row, 1);
+                        // 在顶部添加新行
+                        this.board.unshift(Array(BOARD_WIDTH).fill(EMPTY_CELL));
+                        linesClearedThisTurn++;
+                        row++; // 重新检查当前索引，因为数组长度变了
+                    }
+                }
+                
+                if (linesClearedThisTurn > 0) {
+                    // 计算分数 (根据经典俄罗斯方块计分)
+                    const linePoints = [0, 100, 300, 500, 800]; // 0, 1, 2, 3, 4 行的分数
+                    const pointsEarned = linePoints[linesClearedThisTurn] * this.level;
+                    this.score += pointsEarned;
+                    this.linesCleared += linesClearedThisTurn;
+                    
+                    // 检查是否达到200分的倍数
+                    if (Math.floor(this.score / 200) > Math.floor((this.score - pointsEarned) / 200) && 
+                        !this.powerup) { // 检查是否有道具
+                        // 获得一个道具
+                        this.powerup = this.getNextPowerup();
+                        if (this.powerupElement) {
+                            this.powerupElement.textContent = this.getPowerupName(this.powerup);
+                        }
+                    }
+                    
+                    // 更新等级 (每清除10行升一级)
+                    this.level = Math.floor(this.linesCleared / 10) + 1;
+                    
+                    // 更新下落速度
+                    this.dropInterval = Math.max(100, 1000 - (this.level - 1) * 100);
+                    
+                    this.updateDisplay();
+                }
+            }
+            
+            // 旋转方块
+            rotate() {
+                if (!this.currentPiece) return;
+                
+                const originalShape = this.currentPiece.shape;
+                // 矩阵转置并翻转得到旋转后的矩阵
+                const rows = originalShape.length;
+                const cols = originalShape[0].length;
+                const rotated = [];
+                
+                for (let i = 0; i < cols; i++) {
+                    const newRow = [];
+                    for (let j = rows - 1; j >= 0; j--) {
+                        newRow.push(originalShape[j][i]);
+                    }
+                    rotated.push(newRow);
+                }
+                
+                // 检查旋转后是否碰撞
+                if (!this.checkCollision(this.currentPiece.x, this.currentPiece.y, rotated)) {
+                    this.currentPiece.shape = rotated;
+                }
+            }
+            
+            // 移动方块
+            moveLeft() {
+                if (!this.currentPiece) return;
+                if (!this.checkCollision(this.currentPiece.x - 1, this.currentPiece.y, this.currentPiece.shape)) {
+                    this.currentPiece.x--;
+                }
+            }
+            
+            moveRight() {
+                if (!this.currentPiece) return;
+                if (!this.checkCollision(this.currentPiece.x + 1, this.currentPiece.y, this.currentPiece.shape)) {
+                    this.currentPiece.x++;
+                }
+            }
+            
+            moveDown() {
+                if (!this.currentPiece) return;
+                if (!this.checkCollision(this.currentPiece.x, this.currentPiece.y + 1, this.currentPiece.shape)) {
+                    this.currentPiece.y++;
+                } else {
+                    this.placePiece();
+                    this.clearLines();
+                    this.spawnNewPiece();
+                    
+                    // 检查游戏结束
+                    if (this.checkCollision(this.currentPiece.x, this.currentPiece.y, this.currentPiece.shape)) {
+                        this.gameOver();
+                    }
+                }
+            }
+            
+            // 快速下降
+            hardDrop() {
+                if (!this.currentPiece) return;
+                while (!this.checkCollision(this.currentPiece.x, this.currentPiece.y + 1, this.currentPiece.shape)) {
+                    this.currentPiece.y++;
+                }
+                this.moveDown(); // 锁定方块并生成新方块
+            }
+            
+            // 生成新方块
+            spawnNewPiece() {
+                this.currentPiece = this.nextPiece || this.createNewPiece();
+                this.nextPiece = this.createNewPiece();
+                this.drawNextPiece();
+            }
+            
+            // 更新显示
+            updateDisplay() {
+                this.scoreElement.textContent = this.score;
+                this.levelElement.textContent = this.level;
+                this.linesElement.textContent = this.linesCleared;
+                
+                // 更新道具显示
+                if (this.powerupElement) {
+                    if (this.powerup) {
+                        this.powerupElement.textContent = this.getPowerupName(this.powerup);
+                    } else {
+                        this.powerupElement.textContent = "无";
+                    }
+                }
+                
+                // 清空画布然后重绘
+                this.drawBoard();
+                this.drawCurrentPiece();
+            }
+            
+            // 游戏循环
+            gameLoop(time = 0) {
+                if (this.gameState !== GAME_STATE.PLAYING) {
+                    return;
+                }
+                
+                const deltaTime = time - this.lastTime;
+                this.lastTime = time;
+                
+                this.dropCounter += deltaTime;
+                if (this.dropCounter > this.dropInterval) {
+                    this.moveDown();
+                    this.dropCounter = 0;
+                }
+                
+                this.updateDisplay();
+                
+                this.gameLoopId = requestAnimationFrame((t) => this.gameLoop(t));
+            }
+            
+            // 暂停/继续游戏
+            togglePause() {
+                if (this.gameState === GAME_STATE.PLAYING) {
+                    this.gameState = GAME_STATE.PAUSED;
+                } else if (this.gameState === GAME_STATE.PAUSED) {
+                    this.gameState = GAME_STATE.PLAYING;
+                    this.gameLoop();
+                }
+            }
+            
+            // 获取道具
+            getPowerup(type) {
+                this.powerup = type;  // 直接设置本地属性
+                this.powerupManager.getPowerup(type);  // 同时更新管理器中的道具
+            }
+
+            // 使用道具
+            usePowerup() {
+                // 优先使用本地属性中的道具，如果没有则使用管理器中的
+                if (this.powerup) {
+                    this.powerupManager.powerup = this.powerup;  // 同步到管理器
+                }
+                this.powerupManager.usePowerup();
+                this.powerup = null;  // 使用后清空本地属性
+            }
+
+            // 直接使用道具
+            useImmediatePowerup(type) {
+                this.powerupManager.useImmediatePowerup(type, this.powerupManager.targetPlayer);
+            }
+
+            // 切换道具目标
+            toggleTarget(otherPlayer) {
+                this.powerupManager.toggleTarget(otherPlayer);
+            }
+
+            // 获取道具名称
+            getPowerupName(type) {
+                return this.powerupManager.getPowerupName(type);
+            }
+            
+            // 清除所有活动效果
+            clearActiveEffects() {
+                Object.keys(this.activeEffects).forEach(effectKey => {
+                    if (this.activeEffects[effectKey]) {
+                        clearTimeout(this.activeEffects[effectKey]);
+                        delete this.activeEffects[effectKey];
+                    }
+                });
+            }
+            
+            // 获取下一个道具
+            getNextPowerup() {
+                const powerupTypes = Object.values(POWERUP_TYPES);
+                return powerupTypes[Math.floor(Math.random() * powerupTypes.length)];
+            }
+            
+            // 游戏结束
+            gameOver() {
+                this.gameState = GAME_STATE.GAME_OVER;
+                cancelAnimationFrame(this.gameLoopId);
+                alert(`玩家${this === player1 ? '1' : '2'}游戏结束！最终得分: ${this.score}`);
+            }
+        }
+        
+        // 游戏变量
+        let player1 = null;
+        let player2 = null;
+        let gameState = GAME_STATE.READY;
+        let debugMode = false; // 添加debug模式标志
+        
+        // 添加限时相关变量
+        let timeLimitEnabled = false;
+        let timeLimit = 180; // 默认180秒
+        let timeRemaining = 0;
+        let timerInterval = null;
+        
+        // 开始游戏
+        function startGame() {
+            // 获取限时设置
+            timeLimitEnabled = document.getElementById('timeLimitEnabled').checked;
+            timeLimit = parseInt(document.getElementById('timeLimitInput').value) || 180;
+            timeRemaining = timeLimit;
+            
+            // 创建两个玩家实例
+            player1 = new Player('board1', 'score1', 'level1', 'lines1', 'nextPiece1');
+            player2 = new Player('board2', 'score2', 'level2', 'lines2', 'nextPiece2');
+            
+            // 初始化游戏板
+            player1.initBoard();
+            player2.initBoard();
+            
+            // 显示游戏内容
+            document.getElementById('gameArea').innerHTML = '';
+            document.getElementById('gameContent').style.display = 'flex';
+            
+            // 如果启用了限时，创建倒计时显示
+            if (timeLimitEnabled) {
+                const timerDisplay1 = document.createElement('div');
+                timerDisplay1.className = 'timer-display';
+                timerDisplay1.id = 'timer1';
+                timerDisplay1.textContent = `时间: ${formatTime(timeRemaining)}`;
+                document.querySelector('.player-panel:first-child .info-panel').insertAdjacentElement('afterbegin', timerDisplay1);
+                
+                const timerDisplay2 = document.createElement('div');
+                timerDisplay2.className = 'timer-display';
+                timerDisplay2.id = 'timer2';
+                timerDisplay2.textContent = `时间: ${formatTime(timeRemaining)}`;
+                document.querySelector('.player-panel:last-child .info-panel').insertAdjacentElement('afterbegin', timerDisplay2);
+            }
+            
+            // 重置游戏状态
+            player1.gameState = GAME_STATE.PLAYING;
+            player2.gameState = GAME_STATE.PLAYING;
+            
+            // 生成初始方块
+            player1.nextPiece = player1.createNewPiece();
+            player1.spawnNewPiece();
+            
+            player2.nextPiece = player2.createNewPiece();
+            player2.spawnNewPiece();
+            
+            // 设置键盘事件监听
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // 如果启用了限时，启动计时器
+            if (timeLimitEnabled) {
+                startTimer();
+            }
+            
+            // 开始游戏循环
+            player1.lastTime = 0;
+            player1.dropCounter = 0;
+            player1.gameLoop();
+            
+            player2.lastTime = 0;
+            player2.dropCounter = 0;
+            player2.gameLoop();
+        }
+        
+        // 格式化时间为 MM:SS
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // 启动计时器
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeRemaining = timeLimit;
+            
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                
+                // 更新两个玩家的时间显示
+                const timerDisplay1 = document.getElementById('timer1');
+                const timerDisplay2 = document.getElementById('timer2');
+                
+                if (timerDisplay1) {
+                    timerDisplay1.textContent = `时间: ${formatTime(timeRemaining)}`;
+                }
+                
+                if (timerDisplay2) {
+                    timerDisplay2.textContent = `时间: ${formatTime(timeRemaining)}`;
+                }
+                
+                // 时间到了则游戏结束
+                if (timeRemaining <= 0) {
+                    endGameByTime();
+                }
+            }, 1000);
+        }
+        
+        // 时间到结束游戏
+        function endGameByTime() {
+            clearInterval(timerInterval);
+            
+            // 结束两个玩家的游戏
+            if (player1 && player1.gameState === GAME_STATE.PLAYING) {
+                player1.gameState = GAME_STATE.GAME_OVER;
+                cancelAnimationFrame(player1.gameLoopId);
+            }
+            
+            if (player2 && player2.gameState === GAME_STATE.PLAYING) {
+                player2.gameState = GAME_STATE.GAME_OVER;
+                cancelAnimationFrame(player2.gameLoopId);
+            }
+            
+            // 判断胜负
+            if (player1 && player2) {
+                if (player1.score > player2.score) {
+                    alert(`时间到！玩家1获胜！\n玩家1得分: ${player1.score}\n玩家2得分: ${player2.score}`);
+                } else if (player2.score > player1.score) {
+                    alert(`时间到！玩家2获胜！\n玩家1得分: ${player1.score}\n玩家2得分: ${player2.score}`);
+                } else {
+                    alert(`时间到！平局！\n玩家1得分: ${player1.score}\n玩家2得分: ${player2.score}`);
+                }
+            }
+        }
+        
+        // 切换debug面板
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+                debugMode = true;
+            } else {
+                panel.style.display = 'none';
+                debugMode = false;
+            }
+        }
+        
+        // 给指定玩家给予道具
+        function givePowerupToPlayer(playerNum, powerupType) {
+            if (!debugMode) return; // 只在debug模式下可用
+            
+            const player = playerNum === 1 ? player1 : player2;
+            if (player) {
+                // 立即使用道具而不是获取
+                player.useImmediatePowerup(powerupType);
+            }
+        }
+        
+        // 使用指定玩家的道具
+        function usePowerupOfPlayer(playerNum) {
+            if (!debugMode) return; // 只在debug模式下可用
+            
+            const player = playerNum === 1 ? player1 : player2;
+            if (player) {
+                player.usePowerup();
+            }
+        }
+        
+        // 处理键盘输入
+        function handleKeyPress(event) {
+            let handled = false;
+            
+            // 玩家1控制
+            if (player1 && player1.gameState === GAME_STATE.PLAYING) {
+                // 获取实际要应用控制的玩家（可能因反转而变化）
+                let activePlayer = player1;
+                
+                switch (event.key) {
+                    case 'a':
+                    case 'A':
+                        activePlayer.moveLeft(); // A键：向左移动
+                        handled = true;
+                        break;
+                    case 'd':
+                    case 'D':
+                        activePlayer.moveRight(); // D键：向右移动
+                        handled = true;
+                        break;
+                    case 's':
+                    case 'S':
+                        activePlayer.moveDown(); // S键：向下移动
+                        handled = true;
+                        break;
+                    case 'w':
+                    case 'W':
+                        activePlayer.rotate(); // W键：旋转方块
+                        handled = true;
+                        break;
+                    case ' ':
+                        activePlayer.hardDrop(); // 空格键：快速下降
+                        handled = true;
+                        break;
+                    case 'p':
+                    case 'P':
+                        handled = true;
+                        break;
+                    case 'f':
+                    case 'F': // F键 - 使用道具
+                        if(!debugMode) { // 非debug模式下才能使用道具
+                            player1.usePowerup();
+                            handled = true;
+                        }
+                        break;
+                    case 'g':
+                    case 'G': // G键 - 切换目标
+                        if(!debugMode) { // 非debug模式下才能切换目标
+                            player1.toggleTarget(player2);
+                            handled = true;
+                        }
+                        break;
+                }
+            }
+            
+            // 玩家2控制
+            if (player2 && player2.gameState === GAME_STATE.PLAYING) {
+                // 获取实际要应用控制的玩家（可能因反转而变化）
+                let activePlayer = player2;
+                
+                switch (event.key) {
+                    case 'ArrowLeft':
+                        activePlayer.moveLeft(); // 左箭头键：向左移动
+                        handled = true;
+                        break;
+                    case 'ArrowRight':
+                        activePlayer.moveRight(); // 右箭头键：向右移动
+                        handled = true;
+                        break;
+                    case 'ArrowDown':
+                        activePlayer.moveDown(); // 下箭头键：向下移动
+                        handled = true;
+                        break;
+                    case 'ArrowUp':
+                        activePlayer.rotate(); // 上箭头键：旋转方块
+                        handled = true;
+                        break;
+                    case 'p':
+                    case 'P':
+                        handled = true;
+                        break;
+                    case '0': // 小键盘0 - 使用道具
+                        if(event.location === KeyboardEvent.DOM_KEY_LOCATION_NUMPAD) {
+                            if(!debugMode) { // 非debug模式下才能使用道具
+                                player2.usePowerup();
+                                handled = true;
+                            }
+                        }
+                        break;
+                    case '1': // 小键盘1 - 切换目标
+                        if(event.location === KeyboardEvent.DOM_KEY_LOCATION_NUMPAD) {
+                            if(!debugMode) { // 非debug模式下才能切换目标
+                                player2.toggleTarget(player1);
+                                handled = true;
+                            }
+                        }
+                        break;
+                }
+            }
+            
+            // 如果按键已被处理，则阻止默认行为
+            if (handled) {
+                event.preventDefault();
+            }
+        }
+        
+        // 重置游戏
+        function resetGame() {
+            if (player1 && player1.gameLoopId) {
+                cancelAnimationFrame(player1.gameLoopId);
+            }
+            
+            if (player2 && player2.gameLoopId) {
+                cancelAnimationFrame(player2.gameLoopId);
+            }
+            
+            // 停止计时器
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            // 清除所有活动效果
+            if(player1) player1.clearActiveEffects();
+            if(player2) player2.clearActiveEffects();
+            
+            // 移除键盘事件监听
+            document.removeEventListener('keydown', handleKeyPress);
+            
+            // 重新显示开始按钮和限时设置
+            document.getElementById('gameContent').style.display = 'none';
+            document.getElementById('gameArea').innerHTML = `
+                <div class="time-limit-control">
+                    <label for="timeLimitEnabled">启用时间限制:</label>
+                    <input type="checkbox" id="timeLimitEnabled">
+                    <label for="timeLimitInput">限时(秒):</label>
+                    <input type="number" id="timeLimitInput" class="time-limit-input" min="10" value="180" max="3600">
+                </div>
+                <button class="start-button" onclick="startGame()">开始游戏</button>
+            `;
+            
+            player1 = null;
+            player2 = null;
+            gameState = GAME_STATE.READY;
+        }
+    </script>
+</body>
+</html>
