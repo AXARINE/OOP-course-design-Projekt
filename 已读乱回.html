@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>职场乱回生存战：已读不回的陷阱</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "微软雅黑", Arial, sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .game-container {
+            position: relative;
+            border: 3px solid #333;
+            background-color: #fff;
+            width: 600px;
+            height: 700px;
+            overflow: hidden;
+        }
+        .score-panel {
+            width: 600px;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        .game-title {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .game-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 100;
+        }
+        .game-overlay h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        .game-overlay p {
+            font-size: 20px;
+            margin-bottom: 30px;
+            text-align: center;
+            padding: 0 20px;
+        }
+        .btn {
+            padding: 12px 30px;
+            font-size: 18px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .question-text {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            padding: 0 10px;
+            z-index: 10;
+        }
+        .pause-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            color: #e74c3c;
+            display: none;
+            z-index: 90;
+        }
+        .red-hot-text {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #e74c3c;
+            z-index: 10;
+            display: none;
+        }
+        /* 新增：速度提升提示 */
+        .speed-up-tip {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 20px;
+            background-color: #f39c12;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            z-index: 20;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="game-title">职场乱回生存战：已读不回的陷阱</h1>
+    <div class="score-panel">
+        <div>得分: <span id="score">0</span></div>
+        <div>领导血量: <span id="leaderHp">200</span>/200</div>
+        <div>领导怒气: <span id="leaderAnger">0</span>/50</div>
+    </div>
+    <div class="game-container">
+        <div class="question-text" id="question">会议时间改到几点？</div>
+        <div class="red-hot-text" id="redHotText">领导红温！快哄！</div>
+        <div class="pause-text" id="pauseText">暂停中</div>
+        <!-- 新增：速度提升提示框 -->
+        <div class="speed-up-tip" id="speedUpTip">气泡速度提升！</div>
+        <canvas id="gameCanvas" width="600" height="700"></canvas>
+        <div class="game-overlay" id="startScreen">
+            <h2>职场乱回生存战</h2>
+            <p>规则：控制小人碰撞错误回答气泡（灰色）消耗领导血量，躲避正确回答气泡（蓝色）<br>领导红温后（怒气≥50）背景变红，正确气泡变多，碰撞绿色气泡可减怒<br>领导血量每减少25点，气泡速度加快！<br>左右键移动（长按可连续移动），空格键暂停/继续</p>
+            <button class="btn" id="startBtn">开始游戏</button>
+        </div>
+        <div class="game-overlay" id="gameOverScreen" style="display: none;">
+            <h2 id="gameOverTitle">游戏结束！</h2>
+            <p id="gameOverText">已读乱回成功！但下次领导问「你为什么乱回？」，你回什么？</p>
+            <p>最终得分: <span id="finalScore">0</span></p>
+            <button class="btn" id="restartBtn">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        // ===================== 核心常量 =====================
+        const CANVAS_WIDTH = 600;
+        const CANVAS_HEIGHT = 700;
+        const PLAYER_WIDTH = 50;
+        const PLAYER_HEIGHT = 60;
+        const BUBBLE_WIDTH = 120;
+        const BUBBLE_HEIGHT = 40;
+        const INITIAL_BUBBLE_SPEED = 2; // 初始气泡速度
+        const SPEED_INCREMENT = 0.5; // 每次提速的增量
+        const MAX_BUBBLE_SPEED = 8; // 气泡速度上限
+        const HP_CHECKPOINT_STEP = 20; // 每减少20点血量提速
+        const FIXED_PLAYER_SPEED = 8;
+        const QUESTION_SWITCH_TIME = 8000;
+        const TIP_DISPLAY_DURATION = 1500; // 提示框显示时长
+
+        // ===================== Player类 =====================
+        class Player {
+            constructor() {
+                this.x = CANVAS_WIDTH/2 - PLAYER_WIDTH/2;
+                this.y = CANVAS_HEIGHT - PLAYER_HEIGHT - 10;
+                this.width = PLAYER_WIDTH;
+                this.height = PLAYER_HEIGHT;
+                this.speed = FIXED_PLAYER_SPEED;
+            }
+
+            move(direction) {
+                if (direction === 'left') {
+                    this.x = Math.max(0, this.x - this.speed);
+                } else if (direction === 'right') {
+                    this.x = Math.min(CANVAS_WIDTH - this.width, this.x + this.speed);
+                }
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = '#34495e';
+                ctx.fillRect(this.x + 10, this.y, 30, 30);
+                ctx.fillRect(this.x + 5, this.y + 30, 40, 20);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x + 15, this.y + 10, 8, 8);
+                ctx.strokeRect(this.x + 27, this.y + 10, 8, 8);
+            }
+
+            reset() {
+                this.x = CANVAS_WIDTH/2 - PLAYER_WIDTH/2;
+            }
+        }
+
+        // ===================== Bubble类 =====================
+        class Bubble {
+            constructor(x, y, text, type) {
+                this.x = x;
+                this.y = y;
+                this.width = BUBBLE_WIDTH;
+                this.height = BUBBLE_HEIGHT;
+                this.text = text;
+                this.type = type;
+            }
+
+            update(speed) {
+                this.y += speed;
+            }
+
+            draw(ctx) {
+                let bgColor, borderColor, icon;
+                switch(this.type) {
+                    case 'correct':
+                        bgColor = '#3498db';
+                        borderColor = '#2980b9';
+                        icon = '!';
+                        break;
+                    case 'wrong':
+                        bgColor = '#95a5a6';
+                        borderColor = '#7f8c8d';
+                        icon = '😜';
+                        break;
+                    case 'angerReduce':
+                        bgColor = '#2ecc71';
+                        borderColor = '#27ae60';
+                        icon = '👍';
+                        break;
+                }
+
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '16px 微软雅黑';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(icon, this.x + 10, this.y + this.height/2);
+
+                ctx.textAlign = 'center';
+                ctx.font = '12px 微软雅黑';
+                const showText = this.text.length > 12 ? this.text.substring(0, 10) + '...' : this.text;
+                ctx.fillText(showText, this.x + this.width/2, this.y + this.height/2);
+            }
+        }
+
+        // ===================== Game类 =====================
+        class Game {
+            constructor() {
+                // 基础属性初始化
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.player = new Player();
+                this.bubbles = [];
+                this.score = 0;
+                this.bubbleSpeed = INITIAL_BUBBLE_SPEED; // 初始速度
+                this.gameRunning = false;
+                this.gamePaused = false;
+                this.gameOver = false;
+                this.keys = { ArrowLeft: false, ArrowRight: false };
+
+                // 领导属性
+                this.leader = {
+                    hp: 200,
+                    maxHp: 200,
+                    anger: 0,
+                    maxAnger: 50,
+                    isRedHot: false
+                };
+
+                // 新增：血量检查点（用于判断是否提速）
+                this.lastHpCheckpoint = this.leader.maxHp; // 初始为200
+
+                // 问题数据
+                this.questionData = [
+                    { question: "会议时间改到几点？", correct: "改到下午2点，记得准时。", wrong: ["哦，知道了。", "等我看看。"] },
+                    { question: "为什么项目延期？", correct: "因客户需求变更，已协调资源。", wrong: ["可能吧。", "没注意时间。"] },
+                    { question: "预算审批通过了吗？", correct: "已通过，下周发放。", wrong: ["应该可以吧。", "等通知。"] },
+                    { question: "你迟到原因？", correct: "地铁故障，已申请补假。", wrong: ["没睡醒。", "路上堵车。"] },
+                    { question: "请确认邮件内容？", correct: "已阅读，按要求处理。", wrong: ["收到。", "嗯。"] },
+                    { question: "领导问：这个方案行吗？", correct: "方案已优化，可执行。", wrong: ["还行吧。", "你定。"] },
+                    { question: "会议纪要发了吗？", correct: "已发送至群内，附件见。", wrong: ["发了。", "在群里。"] },
+                    { question: "客户投诉如何处理？", correct: "已联系客户道歉并补偿。", wrong: ["知道了。", "先放放。"] },
+                    { question: "跨部门协作进度？", correct: "A部门已完成，B部门待确认。", wrong: ["在弄。", "快了。"] },
+                    { question: "系统故障原因？", correct: "因服务器升级导致，已修复。", wrong: ["可能卡了。", "没管。"] }
+                ];
+                this.currentQuestion = this.questionData[0];
+                this.questionTimer = null;
+
+                // 绿色气泡相关
+                this.greenBubbleTypes = ["拍马屁", "请领导吃饭", "夸夸"];
+                this.lastGreenBubbleScore = 0;
+
+                // 绑定事件+初始化UI
+                this.bindEvents();
+                this.initUI();
+            }
+
+            // 初始化UI
+            initUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('leaderHp').textContent = this.leader.hp;
+                document.getElementById('leaderAnger').textContent = this.leader.anger;
+                document.getElementById('question').textContent = this.currentQuestion.question;
+            }
+
+            // 绑定事件
+            bindEvents() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.key in this.keys) {
+                        this.keys[e.key] = true;
+                        e.preventDefault();
+                    }
+                    if (!this.gameRunning || this.gameOver) return;
+                    if (e.key === ' ') {
+                        this.gamePaused = !this.gamePaused;
+                        document.getElementById('pauseText').style.display = this.gamePaused ? 'block' : 'none';
+                        if (this.gamePaused) {
+                            clearInterval(this.questionTimer);
+                        } else {
+                            this.startQuestionTimer();
+                        }
+                    }
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    if (e.key in this.keys) {
+                        this.keys[e.key] = false;
+                        e.preventDefault();
+                    }
+                });
+
+                window.addEventListener('blur', () => {
+                    this.keys.ArrowLeft = false;
+                    this.keys.ArrowRight = false;
+                });
+
+                const startBtn = document.getElementById('startBtn');
+                if (startBtn) {
+                    startBtn.addEventListener('click', () => {
+                        this.startGame();
+                    });
+                }
+
+                const restartBtn = document.getElementById('restartBtn');
+                if (restartBtn) {
+                    restartBtn.addEventListener('click', () => {
+                        this.restartGame();
+                    });
+                }
+            }
+
+            // 随机切换问题
+            switchRandomQuestion() {
+                const randomIndex = Math.floor(Math.random() * this.questionData.length);
+                this.currentQuestion = this.questionData[randomIndex];
+                document.getElementById('question').textContent = this.currentQuestion.question;
+            }
+
+            // 启动问题定时器
+            startQuestionTimer() {
+                clearInterval(this.questionTimer);
+                this.questionTimer = setInterval(() => {
+                    if (this.gameRunning && !this.gamePaused) {
+                        this.switchRandomQuestion();
+                    }
+                }, QUESTION_SWITCH_TIME);
+            }
+
+            // 新增：显示速度提升提示
+            showSpeedUpTip() {
+                const tip = document.getElementById('speedUpTip');
+                tip.style.display = 'block';
+                setTimeout(() => {
+                    tip.style.display = 'none';
+                }, TIP_DISPLAY_DURATION);
+            }
+
+            // 新增：检查血量并提升气泡速度
+            checkHpAndSpeedUp() {
+                // 计算当前血量与上一个检查点的差值
+                const hpDiff = this.lastHpCheckpoint - this.leader.hp;
+                // 差值≥25点 且 未达到速度上限
+                if (hpDiff >= HP_CHECKPOINT_STEP && this.bubbleSpeed < MAX_BUBBLE_SPEED) {
+                    this.bubbleSpeed += SPEED_INCREMENT;
+                    // 限制速度不超过上限
+                    this.bubbleSpeed = Math.min(this.bubbleSpeed, MAX_BUBBLE_SPEED);
+                    // 更新检查点为当前血量
+                    this.lastHpCheckpoint = this.leader.hp;
+                    // 显示提速提示
+                    this.showSpeedUpTip();
+                }
+            }
+
+            // 处理玩家移动
+            handlePlayerMovement() {
+                if (this.gamePaused || !this.gameRunning || this.gameOver) return;
+                if (this.keys.ArrowLeft) this.player.move('left');
+                if (this.keys.ArrowRight) this.player.move('right');
+            }
+
+            // 红温状态切换
+            enterRedHot() {
+                this.leader.isRedHot = true;
+                document.querySelector('.game-container').style.backgroundColor = '#ffebeb';
+                document.getElementById('redHotText').style.display = 'block';
+            }
+            exitRedHot() {
+                this.leader.isRedHot = false;
+                document.querySelector('.game-container').style.backgroundColor = '#fff';
+                document.getElementById('redHotText').style.display = 'none';
+            }
+
+            // 开始游戏
+            startGame() {
+                try {
+                    document.getElementById('startScreen').style.display = 'none';
+                    this.gameRunning = true;
+                    this.gameOver = false;
+                    this.gamePaused = false;
+                    document.getElementById('pauseText').style.display = 'none';
+                    this.keys.ArrowLeft = false;
+                    this.keys.ArrowRight = false;
+
+                    this.startQuestionTimer();
+                    this.gameLoop();
+                } catch (e) {
+                    console.error('开始游戏出错：', e);
+                }
+            }
+
+            // 重新开始游戏
+            restartGame() {
+                // 重置所有状态
+                this.player.reset();
+                this.bubbles = [];
+                this.score = 0;
+                // 重置气泡速度和检查点
+                this.bubbleSpeed = INITIAL_BUBBLE_SPEED;
+                this.lastHpCheckpoint = this.leader.maxHp;
+                this.gameOver = false;
+                this.gameRunning = true;
+                this.gamePaused = false;
+                this.keys = { ArrowLeft: false, ArrowRight: false };
+
+                // 重置领导状态
+                this.leader.hp = 200;
+                this.leader.anger = 0;
+                this.leader.isRedHot = false;
+                this.exitRedHot();
+
+                // 重置绿色气泡和问题
+                this.lastGreenBubbleScore = 0;
+                this.switchRandomQuestion();
+
+                // 更新UI
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('leaderHp').textContent = this.leader.hp;
+                document.getElementById('leaderAnger').textContent = this.leader.anger;
+                document.getElementById('gameOverScreen').style.display = 'none';
+                document.getElementById('gameOverTitle').textContent = '游戏结束！';
+
+                // 重启定时器和循环
+                this.startQuestionTimer();
+                this.gameLoop();
+            }
+
+            // 生成气泡
+            generateBubble() {
+                if (this.gamePaused || !this.gameRunning) return;
+                
+                // 生成正确/错误气泡
+                if (Math.random() < 0.017 && this.bubbles.length < 5) {
+                    const isCorrect = Math.random() < (this.leader.isRedHot ? 0.5 : 0.3);
+                    let text, type;
+                    if (isCorrect) {
+                        text = this.currentQuestion.correct;
+                        type = 'correct';
+                    } else {
+                        text = this.currentQuestion.wrong[Math.floor(Math.random() * this.currentQuestion.wrong.length)];
+                        type = 'wrong';
+                    }
+                    const x = Math.random() * (CANVAS_WIDTH - BUBBLE_WIDTH);
+                    this.bubbles.push(new Bubble(x, -BUBBLE_HEIGHT, text, type));
+                }
+                
+                // 绿色减怒气泡
+                if (this.leader.isRedHot && this.score - this.lastGreenBubbleScore >= 500) {
+                    const randomText = this.greenBubbleTypes[Math.floor(Math.random() * this.greenBubbleTypes.length)];
+                    const x = Math.random() * (CANVAS_WIDTH - BUBBLE_WIDTH);
+                    this.bubbles.push(new Bubble(x, -BUBBLE_HEIGHT, randomText, 'angerReduce'));
+                    this.lastGreenBubbleScore = this.score;
+                }
+            }
+
+            // 更新气泡和碰撞检测
+            updateBubbles() {
+                for (let i = this.bubbles.length - 1; i >= 0; i--) {
+                    const bubble = this.bubbles[i];
+                    bubble.update(this.bubbleSpeed);
+
+                    if (this.checkCollision(this.player, bubble)) {
+                        switch(bubble.type) {
+                            case 'correct':
+                                this.gameOver = true;
+                                this.gameRunning = false;
+                                clearInterval(this.questionTimer);
+                                document.getElementById('gameOverTitle').textContent = '游戏结束！';
+                                document.getElementById('gameOverText').textContent = '回答太认真，被领导委以重任！';
+                                document.getElementById('finalScore').textContent = this.score;
+                                document.getElementById('gameOverScreen').style.display = 'flex';
+                                break;
+                            case 'wrong':
+                                this.score += 100;
+                                document.getElementById('score').textContent = this.score;
+                                if (this.leader.isRedHot) {
+                                    this.leader.hp = Math.max(0, this.leader.hp - 1);
+                                } else {
+                                    this.leader.hp = Math.max(0, this.leader.hp - 5);
+                                    this.leader.anger = Math.min(this.leader.maxAnger, this.leader.anger + 5);
+                                    if (this.leader.anger >= this.leader.maxAnger) {
+                                        this.enterRedHot();
+                                    }
+                                }
+                                document.getElementById('leaderHp').textContent = this.leader.hp;
+                                document.getElementById('leaderAnger').textContent = this.leader.anger;
+
+                                // 关键修改：每次扣血后检查是否需要提速
+                                this.checkHpAndSpeedUp();
+
+                                if (this.leader.hp <= 0) {
+                                    this.gameWin();
+                                }
+                                this.bubbles.splice(i, 1);
+                                break;
+                            case 'angerReduce':
+                                this.leader.anger = Math.max(0, this.leader.anger - 10);
+                                document.getElementById('leaderAnger').textContent = this.leader.anger;
+                                if (this.leader.anger <= 0 && this.leader.isRedHot) {
+                                    this.exitRedHot();
+                                }
+                                this.bubbles.splice(i, 1);
+                                break;
+                        }
+                    }
+
+                    if (bubble.y > CANVAS_HEIGHT) {
+                        this.bubbles.splice(i, 1);
+                    }
+                }
+            }
+
+            // 碰撞检测
+            checkCollision(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+
+            // 游戏胜利
+            gameWin() {
+                this.gameRunning = false;
+                clearInterval(this.questionTimer);
+                document.getElementById('gameOverTitle').textContent = '游戏胜利！';
+                document.getElementById('gameOverText').textContent = '恭喜！成功糊弄领导，获得摸鱼自由！';
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('gameOverScreen').style.display = 'flex';
+            }
+
+            // 清空画布
+            clearCanvas() {
+                this.ctx.fillStyle = '#ecf0f1';
+                this.ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            }
+
+            // 游戏主循环
+            gameLoop() {
+                if (!this.gameRunning) return;
+                if (this.gamePaused) {
+                    requestAnimationFrame(() => this.gameLoop());
+                    return;
+                }
+
+                this.handlePlayerMovement();
+                this.clearCanvas();
+                this.generateBubble();
+                this.updateBubbles();
+                this.player.draw(this.ctx);
+                this.bubbles.forEach(bubble => bubble.draw(this.ctx));
+
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+
+        // 初始化游戏
+        window.addEventListener('load', () => {
+            new Game();
+        });
+    </script>
+</body>
+</html>
