@@ -27,9 +27,23 @@ async function inline() {
     // Output file name: default to tankwar.html, allow override via --out or OUT_NAME env
     const argOut = process.argv.find((a) => a.startsWith('--out='));
     const outName = (argOut ? argOut.split('=')[1] : (process.env.OUT_NAME || 'tankwar.html')).trim();
-    const outPath = resolve(distDir, outName);
-    await writeFile(outPath, html, 'utf8');
-    console.log('Generated', outPath);
+
+    // Output directory for the final single-file HTML. Default to dist if no --outdir/OUT_DIR provided.
+    const argOutDir = process.argv.find((a) => a.startsWith('--outdir='));
+    const outDir = (argOutDir ? argOutDir.split('=')[1] : process.env.OUT_DIR || '').trim();
+
+    let finalOutPath;
+    if (outDir) {
+        const resolvedOutDir = resolve(process.cwd(), outDir);
+        // ensure directory exists
+        await import('node:fs/promises').then(({ mkdir }) => mkdir(resolvedOutDir, { recursive: true }));
+        finalOutPath = resolve(resolvedOutDir, outName);
+    } else {
+        finalOutPath = resolve(distDir, outName);
+    }
+
+    await writeFile(finalOutPath, html, 'utf8');
+    console.log('Generated', finalOutPath);
 }
 
 async function replaceAsync(str, regex, asyncFn) {

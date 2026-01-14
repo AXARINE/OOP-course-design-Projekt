@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import { Tank } from './Tank';
 import type { IGameContext } from '../core/GameContext';
 
+/**
+ * 敌方 AI 坦克：包含寻路、巡逻与射击决策
+ */
 export class EnemyAI extends Tank {
     private moveEvent: Phaser.Time.TimerEvent;
     private gameContext?: IGameContext;
@@ -18,6 +21,9 @@ export class EnemyAI extends Tank {
     private noiseRadius: number = 24;
     private waypointTolerance: number = 18;
 
+    /**
+     * 创建敌人并启动周期性 AI 逻辑
+     */
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, 'enemy-texture');
 
@@ -42,16 +48,19 @@ export class EnemyAI extends Tank {
         }
     }
 
+    /** 暂停 AI 行为（停止定时器并清零速度） */
     public pauseAI() {
         if (this.moveEvent) this.moveEvent.paused = true;
         this.desiredSpeed = 0;
         this.setVelocity(0, 0);
     }
 
+    /** 恢复 AI 定时事件 */
     public resumeAI() {
         if (this.moveEvent) this.moveEvent.paused = false;
     }
 
+    /** 每帧更新：处理射击判定、转向和平滑移动 */
     update() {
         // 使用游戏上下文检查状态
         if (this.gameContext && !this.gameContext.isPlaying()) {
@@ -143,6 +152,7 @@ export class EnemyAI extends Tank {
         if (this.y > bounds.bottom - margin) this.y = bounds.bottom - margin;
     }
 
+    /** 周期性 AI 决策逻辑（选择 chase/random/idle 等行为） */
     private aiLogic() {
         if (this.gameContext && !this.gameContext.isPlaying()) {
             this.desiredSpeed = 0;
@@ -223,11 +233,13 @@ export class EnemyAI extends Tank {
         }
     }
 
+    /** 销毁：清理定时器后调用父类销毁 */
     destroy(fromScene?: boolean) {
         this.moveEvent.destroy();
         super.destroy(fromScene);
     }
 
+    /** 返回当前瞄准角度（若存在） */
     public getAimAngle(): number | null {
         return this.aimAngle;
     }

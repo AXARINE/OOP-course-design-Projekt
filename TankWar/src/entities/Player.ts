@@ -1,12 +1,18 @@
 import Phaser from 'phaser';
 import { Tank } from './Tank';
 
+/**
+ * 玩家控制的坦克，处理输入与玩家专属逻辑
+ */
 export class Player extends Tank {
     private cursors: Phaser.Types.Input.Keyboard.CursorKeys;
     private rotateSpeed: number = 200;
     private keySpace: Phaser.Input.Keyboard.Key;
     private debugTick: number = 0;
 
+    /**
+     * 创建玩家实体并绑定输入
+     */
     constructor(scene: Phaser.Scene, x: number, y: number) {
         super(scene, x, y, 'tank-texture');
         this.hp = 3; // 玩家 3 条命
@@ -20,10 +26,12 @@ export class Player extends Tank {
         }
     }
 
+    /**
+     * 每帧更新：处理旋转、移动与射击
+     */
     update() {
         if (!this.active) return;
-
-        // 调试：每30帧打印按键状态
+        // 调试输出（每30帧）
         this.debugTick++;
         if (this.debugTick % 30 === 0) {
             console.log('Player.update', {

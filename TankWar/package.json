@@ -7,7 +7,7 @@
         "dev": "vite",
         "build": "tsc && vite build",
         "preview": "vite preview",
-        "build:single": "tsc && vite build && node scripts/inline-single-html.mjs --out=tankwar.html"
+        "build:single": "tsc && vite build && node scripts/inline-single-html.mjs --out=tankwar.html --outdir=build-output"
     },
     "devDependencies": {
         "typescript": "~5.9.3",

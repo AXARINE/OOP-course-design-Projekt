@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 
+/**
+ * 子弹实体：处理发射、反弹与生命周期管理
+ */
 export class Bullet extends Phaser.Physics.Arcade.Image {
     private speed: number = 400;
     private owner?: any; // 发射者引用，用于避免自伤或友伤
@@ -12,7 +15,13 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
         super(scene, 0, 0, 'bullet-texture');
     }
 
-    // 发射方法，带上发射者引用
+    /**
+     * 发射子弹并初始化物理属性
+     * @param x 世界坐标 x
+     * @param y 世界坐标 y
+     * @param rotation 朝向（弧度）
+     * @param owner 发射者引用（用于碰撞过滤）
+     */
     fire(x: number, y: number, rotation: number, owner?: any) {
         // 1. 激活子弹
         this.enableBody(true, x, y, true, true);
@@ -49,12 +58,14 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
         });
     }
 
-    // 读取发射者（供碰撞过滤使用）
+    /** 读取发射者（碰撞过滤用） */
     public getOwner() {
         return this.owner;
     }
 
-    // 统一回收方法，确保清理 owner
+    /**
+     * 回收子弹并清理关联资源
+     */
     public deactivate() {
         if (this.lifespanTimer) {
             try { this.lifespanTimer.remove(false); } catch (e) { /* ignore */ }
@@ -64,8 +75,8 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
         this.owner = undefined;
     }
 
+    /** 每帧更新：使用射线检测避免高速穿透墙体 */
     update(_time: number, _delta: number) {
-        // 使用射线检测本帧路径穿越墙体，避免高速穿透
         const sceneAny = this.scene as any;
         const walls = sceneAny?.walls;
         const tileSize: number = sceneAny?.tileSize ?? 32;
