@@ -28,21 +28,24 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
     }
 
     preload() {
-        // 加载游戏主题CSS文件以获取颜色配置
-        this.load.css('game-theme', 'assets/styles/game-theme.css');
-
-        // 尝试加载自定义纹理
+        // 检测是否在单文件构建环境中，如果是，则跳过CSS加载
+        if (typeof window !== 'undefined' && window.location.pathname.toLowerCase().includes('tankwar.html')) {
+            // 在单文件构建中，CSS变量已经通过HTML的<style>标签注入，无需再次加载
+            console.log('Detected single-file build, skipping external CSS loading');
+        } else {
+            // 非单文件构建环境下，仍然加载外部CSS
+            this.load.css('game-theme', 'assets/styles/game-theme.css');
+        }
+        
         this.load.image('custom-tank-texture', 'assets/textures/tank-texture.png');
         this.load.image('custom-enemy-texture', 'assets/textures/enemy-texture.png');
         this.load.image('custom-wall-texture', 'assets/textures/wall-texture.png');
         this.load.image('custom-bullet-texture', 'assets/textures/bullet-texture.png');
-
-        // 监听加载完成事件
+        
         this.load.on('complete', () => {
             this.generateTextures();
         });
 
-        // 开始加载
         this.load.start();
     }
 
@@ -77,8 +80,8 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
                 this.textures.renameTexture('custom-tank-texture', 'tank-texture');
             } else {
                 // 使用CSS变量生成玩家坦克纹理
-                const playerColor = this.hexToNumber(this.getCSSVariable('--player-color', '#00ff00'));
-                const playerTurretColor = this.hexToNumber(this.getCSSVariable('--player-turret-color', '#0000ff'));
+                const playerColor = this.hexToNumber(this.getCSSVariable('--player-color', '#3f7f5f'));
+                const playerTurretColor = this.hexToNumber(this.getCSSVariable('--player-turret-color', '#4c8f68'));
                 const playerBarrelColor = this.hexToNumber(this.getCSSVariable('--player-barrel-color', '#333333'));
 
                 // 从CSS变量获取坦克参数
@@ -111,7 +114,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
 
                 // 添加边框效果
                 // strokeRoundedRect(x坐标, y坐标, 宽度, 高度, 圆角半径)
-                graphics.lineStyle(2, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 线条宽度2，颜色
+                graphics.lineStyle(2, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#3E2723'))); // 线条宽度2，颜色
                 graphics.strokeRoundedRect(tankBodyOffsetX, tankBodyOffsetY, tankBodyWidth, tankBodyHeight, tankBodyRadius); // 描边
 
                 // 绘制履带
@@ -124,7 +127,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
                 graphics.fillCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔
 
                 // 添加炮塔边框效果
-                graphics.lineStyle(1, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 边框线条宽度1，颜色
+                graphics.lineStyle(1, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#3E2723'))); // 边框线条宽度1，颜色
                 graphics.strokeCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔边框
 
                 // 绘制炮管 - 从炮塔中心向右延伸
@@ -142,9 +145,9 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
                 this.textures.renameTexture('custom-enemy-texture', 'enemy-texture');
             } else {
                 // 使用CSS变量生成敌人坦克纹理
-                const enemyColor = this.hexToNumber(this.getCSSVariable('--enemy-color', '#ff0000'));
-                const enemyTurretColor = this.hexToNumber(this.getCSSVariable('--enemy-turret-color', '#ffffff'));
-                const enemyBarrelColor = this.hexToNumber(this.getCSSVariable('--enemy-barrel-color', '#333333'));
+                const enemyColor = this.hexToNumber(this.getCSSVariable('--enemy-color', '#8B4513'));
+                const enemyTurretColor = this.hexToNumber(this.getCSSVariable('--enemy-turret-color', '#A52A2A'));
+                const enemyBarrelColor = this.hexToNumber(this.getCSSVariable('--enemy-barrel-color', '#2F1B14'));
 
                 // 从CSS变量获取坦克参数
                 const tankBodyWidth = this.getCSSVariableAsNumber('--tank-body-width', 30);
@@ -176,7 +179,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
 
                 // 添加边框效果
                 // strokeRoundedRect(x坐标, y坐标, 宽度, 高度, 圆角半径)
-                graphics.lineStyle(2, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 线条宽度2，颜色
+                graphics.lineStyle(2, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#3E2723'))); // 线条宽度2，颜色
                 graphics.strokeRoundedRect(tankBodyOffsetX, tankBodyOffsetY, tankBodyWidth, tankBodyHeight, tankBodyRadius); // 描边
 
                 // 绘制履带
@@ -189,7 +192,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
                 graphics.fillCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔
 
                 // 添加炮塔边框效果
-                graphics.lineStyle(1, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 边框线条宽度1，颜色
+                graphics.lineStyle(1, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#3E2723'))); // 边框线条宽度1，颜色
                 graphics.strokeCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔边框
 
                 // 绘制敌方炮管 - 从炮塔中心向右延伸
@@ -207,8 +210,8 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
                 this.textures.renameTexture('custom-wall-texture', 'wall-texture');
             } else {
                 // 使用CSS变量生成墙壁纹理
-                const wallColor = this.hexToNumber(this.getCSSVariable('--wall-color', '#bcae76'));
-                const wallBorderColor = this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'));
+                const wallColor = this.hexToNumber(this.getCSSVariable('--wall-color', '#5D4037'));
+                const wallBorderColor = this.hexToNumber(this.getCSSVariable('--wall-border-color', '#3E2723'));
 
                 const graphics = this.make.graphics({ x: 0, y: 0 });
                 graphics.fillStyle(wallColor);
@@ -239,7 +242,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
 
     create() {
         // 使用CSS变量设置背景颜色
-        const bgColor = this.getCSSVariable('--background-color', '#000000');
+        const bgColor = this.getCSSVariable('--background-color', '#e0c213');
         this.add.rectangle(400, 300, 800, 600, this.hexToNumber(bgColor));
         this.physics.world.setFPS(120);
         

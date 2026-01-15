@@ -1,19 +1,20 @@
 {
-    "name": "project",
-    "private": true,
-    "version": "0.0.0",
-    "type": "module",
-    "scripts": {
-        "dev": "vite",
-        "build": "tsc && vite build",
-        "preview": "vite preview",
-        "build:single": "tsc && vite build && node scripts/inline-single-html.mjs --out=tankwar.html --outdir=build-output"
-    },
-    "devDependencies": {
-        "typescript": "~5.9.3",
-        "vite": "^7.2.4"
-    },
-    "dependencies": {
-        "phaser": "^3.90.0"
-    }
+  "name": "project",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "build:single": "tsc && vite build && node scripts/inline-single-html.mjs --out=tankwar.html --outdir=build-output"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  },
+  "dependencies": {
+    "phaser": "^3.87.0"
+  }
 }

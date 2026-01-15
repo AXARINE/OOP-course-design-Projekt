@@ -1,75 +1,210 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
+import { resolve } from 'path';
 
+// 读取CSS文件内容
+function readCssFiles(dirPath) {
+    const cssFiles = [];
+    const files = readdirSync(dirPath);
+
+    for (const file of files) {
+        const filePath = `${dirPath}/${file}`;
+        const stat = statSync(filePath);
+
+        if (stat.isDirectory()) {
+            cssFiles.push(...readCssFiles(filePath));
+        } else if (file.endsWith('.css')) {
+            cssFiles.push({
+                name: file,
+                content: readFileSync(filePath, 'utf-8')
+            });
+        }
+    }
+
+    return cssFiles;
+}
+
+// 内联资源到HTML
+export async function inlineAssets(inputHtmlPath, outputHtmlPath, options = {}) {
+    // 读取打包后的HTML内容
+    let html = readFileSync(inputHtmlPath, 'utf8');
+
+    // 提取body内容
+    const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/);
+    if (!bodyMatch) {
+        throw new Error('找不到HTML body标签');
+    }
+    const bodyContent = bodyMatch[1];
+
+    // 提取head中的样式内容
+    const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/);
+    let headContent = '';
+    if (headMatch) {
+        headContent = headMatch[1]
+            .replace(/<title>.*<\/title>/, '')  // 移除title标签
+            .replace(/<meta[^>]*charset="[^"]*"[^>]*>/, '')  // 移除charset meta标签
+            .replace(/<meta[^>]*name="viewport"[^>]*>/, '')  // 移除viewport meta标签
+            .replace(/<link[^>]*rel="icon"[^>]*>/, '')  // 移除favicon链接
+            .replace(/<style>[\s\S]*?<\/style>/, (match) => {
+                // 保留非CSS变量的样式
+                return match.replace(/:root\s*{[\s\S]*?}/g, '');
+            })
+            .replace(/<script[^>]*src="[^"]*"><\/script>/g, '') // 移除外部脚本引用
+            .replace(/<link[^>]*rel=["']stylesheet["'][^>]*href=["'][^"']*["'][^>]*>/g, '') // 移除外部CSS引用
+            .trim();
+    }
+
+    // 读取CSS文件
+    const cssFolderPath = options.cssFolder || './public/assets/styles';
+    let cssCode = '';
+    
+    try {
+        const cssFiles = readCssFiles(cssFolderPath);
+        for (const cssFile of cssFiles) {
+            cssCode += `\n/* ${cssFile.name} */\n${cssFile.content}\n`;
+        }
+    } catch (error) {
+        console.log(`无法读取CSS文件夹: ${error.message}`);
+    }
+
+    // 直接从dist/assets目录读取所有JS文件
+    let jsCode = '';
+    try {
+        const assetsPath = './dist/assets/';
+        const assetsFiles = readdirSync(assetsPath);
+        
+        // 找到唯一的JS文件
+        const jsFiles = assetsFiles.filter(file => file.endsWith('.js'));
+        if (jsFiles.length > 0) {
+            const jsFile = jsFiles[0]; // 取第一个JS文件
+            const scriptPath = `${assetsPath}${jsFile}`;
+            console.log(`正在读取JS文件: ${scriptPath}`);
+            
+            const scriptContent = readFileSync(scriptPath, 'utf8');
+            console.log(`JS文件大小: ${scriptContent.length} 字符`);
+            
+            // 包装JS代码以避免重复初始化
+            jsCode = `
+                // 防止重复初始化
+                if (!window.gameInstance) {
+                    window.gameInstance = true;
+                    
+                    // 确保CSS变量在游戏初始化前加载
+                    if (document.querySelector('#game-theme-css')) {
+                        // CSS已通过style标签注入，等待DOM和样式加载完成
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', () => {
+                                // 延迟一小段时间确保CSS变量已解析
+                                setTimeout(() => {
+                                    try {
+                                        ${scriptContent}
+                                    } catch (e) {
+                                        console.error('执行游戏代码时出错:', e);
+                                    }
+                                }, 10);
+                            });
+                        } else {
+                            // DOM已完成加载，直接执行
+                            setTimeout(() => {
+                                try {
+                                    ${scriptContent}
+                                } catch (e) {
+                                    console.error('执行游戏代码时出错:', e);
+                                }
+                            }, 10);
+                        }
+                    } else {
+                        // 没有找到CSS，直接执行
+                        try {
+                            ${scriptContent}
+                        } catch (e) {
+                            console.error('执行游戏代码时出错:', e);
+                        }
+                    }
+                }
+            `;
+        } else {
+            console.warn('未找到JS文件');
+        }
+    } catch (err) {
+        console.error(`无法读取JS文件: ${err.message}`);
+        console.error(`错误堆栈: ${err.stack}`);
+    }
+
+    // 生成最终的HTML
+    const finalHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tank War</title>
+    ${headContent ? headContent + '\n    ' : ''}
+    <style id="game-theme-css">
+${cssCode}
+    </style>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+        }
+        #app {
+            display: block;
+            margin: 0 auto;
+            position: relative;
+            /* 确保canvas居中且不会被拉伸变形 */
+        }
+        #app canvas {
+            display: block;
+            margin: 0 auto;
+            /* 使用max-width防止画布超出容器 */
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        // 在这里注入处理后的JavaScript代码
+        ${jsCode}
+    </script>
+</body>
+</html>`;
+
+    // 写入输出文件
+    writeFileSync(outputHtmlPath, finalHtml);
+    console.log(`单文件已生成: ${outputHtmlPath}`);
+}
+
+// 导出函数
+export default inlineAssets;
+
+// 添加命令行处理
 async function inline() {
-    const distDir = resolve(process.cwd(), 'dist');
-    const indexPath = resolve(distDir, 'index.html');
-    let html = await readFile(indexPath, 'utf8');
+    const args = process.argv.slice(2);
+    const outMatch = args.find(arg => arg.startsWith('--out='));
+    const dirMatch = args.find(arg => arg.startsWith('--outdir='));
 
-    // Inline stylesheet links
-    html = await replaceAsync(html, /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi, async (m, href) => {
-        const cssPath = resolve(distDir, href.replace(/^\//, ''));
-        const css = await readFile(cssPath, 'utf8');
-        return `<style>${css}</style>`;
-    });
+    const outFile = outMatch ? outMatch.split('=')[1] : 'index.html';
+    const outDir = dirMatch ? dirMatch.split('=')[1] : 'dist';  // 修复之前的错误
 
-    // Remove modulepreload links
-    html = html.replace(/<link[^>]*rel=["']modulepreload["'][^>]*>/gi, '');
+    const indexPath = resolve('dist', 'index.html');
+    const outputPath = resolve(outDir, outFile);
 
-    // Inline script src (type module or not)
-    html = await replaceAsync(html, /<script([^>]*)src=["']([^"']+)["']([^>]*)><\/script>/gi, async (m, pre, src, post) => {
-        const jsPath = resolve(distDir, src.replace(/^\//, ''));
-        const js = await readFile(jsPath, 'utf8');
-        const typeAttr = /type=/.test(pre + post) ? '' : ' type="module"';
-        return `<script${typeAttr}${pre}${post}>\n${js}\n<\/script>`;
-    });
-
-    // Output file name: default to tankwar.html, allow override via --out or OUT_NAME env
-    const argOut = process.argv.find((a) => a.startsWith('--out='));
-    const outName = (argOut ? argOut.split('=')[1] : (process.env.OUT_NAME || 'tankwar.html')).trim();
-
-    // Output directory for the final single-file HTML. Default to dist if no --outdir/OUT_DIR provided.
-    const argOutDir = process.argv.find((a) => a.startsWith('--outdir='));
-    const outDir = (argOutDir ? argOutDir.split('=')[1] : process.env.OUT_DIR || '').trim();
-
-    let finalOutPath;
-    if (outDir) {
-        const resolvedOutDir = resolve(process.cwd(), outDir);
-        // ensure directory exists
-        await import('node:fs/promises').then(({ mkdir }) => mkdir(resolvedOutDir, { recursive: true }));
-        finalOutPath = resolve(resolvedOutDir, outName);
-    } else {
-        finalOutPath = resolve(distDir, outName);
+    // 确保输出目录存在
+    try {
+        const fs = await import('fs');
+        fs.mkdirSync(outDir, { recursive: true });
+    } catch (e) {
+        // 忽略mkdir错误，如果目录已存在
     }
 
-    await writeFile(finalOutPath, html, 'utf8');
-    console.log('Generated', finalOutPath);
+    await inlineAssets(indexPath, outputPath);
 }
 
-async function replaceAsync(str, regex, asyncFn) {
-    const matches = [];
-    str.replace(regex, (match, ...args) => {
-        const offset = args[args.length - 2];
-        matches.push({ match, args: args.slice(0, -2), offset });
-        return match;
+// 如果直接运行此脚本，则执行内联
+if (process.argv[1] && process.argv[1].endsWith('inline-single-html.mjs')) {
+    inline().catch(err => {
+        console.error(err);
+        process.exit(1);
     });
-
-    // Build result by walking the string and replacing matches
-    let cursor = 0;
-    let result = '';
-    for (const m of matches) {
-        const start = str.indexOf(m.match, cursor);
-        const end = start + m.match.length;
-        result += str.slice(cursor, start);
-        const replacement = await asyncFn(m.match, ...m.args);
-        result += replacement;
-        cursor = end;
-    }
-    result += str.slice(cursor);
-    return result;
 }
-
-inline().catch((e) => {
-    console.error(e);
-    process.exit(1);
-});

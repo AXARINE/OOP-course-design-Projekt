@@ -54,7 +54,6 @@ export class CollisionManager {
         this.scene.physics.add.overlap(bullets, enemies, (bullet, enemy) => {
             const b = bullet as Bullet;
             const e: any = enemy;
-            const owner: any = b.getOwner && b.getOwner();
 
             // 移除所有伤害限制，允许任何子弹伤害任何目标，包括发射者
             b.deactivate();
