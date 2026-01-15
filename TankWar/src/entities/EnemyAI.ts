@@ -62,6 +62,11 @@ export class EnemyAI extends Tank {
 
     /** 每帧更新：处理射击判定、转向和平滑移动 */
     update() {
+        // 检查场景是否存在
+        if (!this.scene || !this.scene.physics) {
+            return;
+        }
+
         // 使用游戏上下文检查状态
         if (this.gameContext && !this.gameContext.isPlaying()) {
             this.setVelocity(0, 0);
@@ -146,8 +151,12 @@ export class EnemyAI extends Tank {
 
             const speedFactor = Phaser.Math.Clamp(1 - Math.min(Math.abs(angleDiff) / Math.PI, 1), 0.3, 1);
             const finalSpeed = this.desiredSpeed * speedFactor;
-            const vec = this.scene.physics.velocityFromRotation(this.rotation, finalSpeed);
-            this.setVelocity(vec.x, vec.y);
+
+            // 检查scene.physics是否存在
+            if (this.scene && this.scene.physics) {
+                const vec = this.scene.physics.velocityFromRotation(this.rotation, finalSpeed);
+                this.setVelocity(vec.x, vec.y);
+            }
         }
 
         // 边界检查
@@ -156,12 +165,15 @@ export class EnemyAI extends Tank {
             this.setVelocity(0, 0);
         }
 
-        const bounds = this.scene.physics.world.bounds;
-        const margin = 16;
-        if (this.x < bounds.x + margin) this.x = bounds.x + margin;
-        if (this.x > bounds.right - margin) this.x = bounds.right - margin;
-        if (this.y < bounds.y + margin) this.y = bounds.y + margin;
-        if (this.y > bounds.bottom - margin) this.y = bounds.bottom - margin;
+        // 检查scene.physics是否存在
+        if (this.scene && this.scene.physics) {
+            const bounds = this.scene.physics.world.bounds;
+            const margin = 16;
+            if (this.x < bounds.x + margin) this.x = bounds.x + margin;
+            if (this.x > bounds.right - margin) this.x = bounds.right - margin;
+            if (this.y < bounds.y + margin) this.y = bounds.y + margin;
+            if (this.y > bounds.bottom - margin) this.y = bounds.bottom - margin;
+        }
     }
 
     /**
@@ -224,6 +236,11 @@ export class EnemyAI extends Tank {
 
     /** 周期性 AI 决策逻辑（选择 chase/random/idle 等行为） */
     private aiLogic() {
+        // 检查场景是否存在
+        if (!this.scene || !this.scene.physics) {
+            return;
+        }
+
         if (this.gameContext && !this.gameContext.isPlaying()) {
             this.desiredSpeed = 0;
             this.targetPos = null;
@@ -279,6 +296,8 @@ export class EnemyAI extends Tank {
             let attemptsR = 0;
             let rx = 0, ry = 0;
             while (attemptsR < 12) {
+                // 检查场景是否存在
+                if (!this.scene || !this.scene.physics) return;
                 rx = Phaser.Math.Between(50, this.scene.physics.world.bounds.right - 50);
                 ry = Phaser.Math.Between(50, this.scene.physics.world.bounds.bottom - 50);
 

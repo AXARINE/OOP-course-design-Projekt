@@ -28,24 +28,29 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
     }
 
     preload() {
-        // 检测是否在单文件构建环境中，如果是，则跳过CSS加载
-        if (typeof window !== 'undefined' && window.location.pathname.toLowerCase().includes('tankwar.html')) {
-            // 在单文件构建中，CSS变量已经通过HTML的<style>标签注入，无需再次加载
-            console.log('Detected single-file build, skipping external CSS loading');
-        } else {
-            // 非单文件构建环境下，仍然加载外部CSS
+        // 检测是否在单文件环境中，如果是，则不加载外部CSS
+        // 更准确的检测方法：检查当前环境是否是单文件构建
+        const isSingleFileBuild = typeof window !== 'undefined' && 
+                                  window.location && 
+                                  window.location.pathname.toLowerCase().includes('tankwar.html');
+        
+        if (!isSingleFileBuild) {
+            // 加载游戏主题CSS文件以获取颜色配置（仅在非单文件环境下）
             this.load.css('game-theme', 'assets/styles/game-theme.css');
         }
-        
+
+        // 尝试加载自定义纹理
         this.load.image('custom-tank-texture', 'assets/textures/tank-texture.png');
         this.load.image('custom-enemy-texture', 'assets/textures/enemy-texture.png');
         this.load.image('custom-wall-texture', 'assets/textures/wall-texture.png');
         this.load.image('custom-bullet-texture', 'assets/textures/bullet-texture.png');
-        
+
+        // 监听加载完成事件
         this.load.on('complete', () => {
             this.generateTextures();
         });
 
+        // 开始加载
         this.load.start();
     }
 
