@@ -17,7 +17,7 @@ export class EnemyAI extends Tank {
     private pathIndex: number = 0;
     private desiredSpeed: number = 0;
     private rotationSpeedDeg: number = 180;
-    private behavior: 'chase' | 'random' | 'idle' = 'idle';
+    private behavior: 'chase' | 'random' | 'idle' | 'evade' = 'idle';
     private noiseRadius: number = 24;
     private waypointTolerance: number = 18;
 
@@ -69,6 +69,12 @@ export class EnemyAI extends Tank {
             return;
         }
 
+        // 校正位置，防止坦克进入墙壁内部
+        this.adjustPositionWithinBounds();
+
+        // 检查附近是否有子弹，需要躲避
+        this.checkAndEvadeBullets();
+
         // 尝试射击
         const player = this.gameContext ? this.gameContext.getPlayer() : null;
         if (player && Phaser.Math.Between(0, 100) > 96) {
@@ -89,7 +95,13 @@ export class EnemyAI extends Tank {
 
                 const angleDiffAim = Phaser.Math.Angle.Wrap(aim - this.rotation);
                 const maxToleranceRad = Phaser.Math.DegToRad(12);
-                if (Math.abs(angleDiffAim) <= maxToleranceRad && !hasFriendBetween) {
+
+                // 检查场上子弹数量，如果超过阈值则AI不射击
+                const maxBulletsThreshold = 6; // 设定最大子弹数量阈值
+                const bullets = this.gameContext ? this.gameContext.getBullets() : null;
+                const activeBulletsCount = bullets ? bullets.countActive(true) : 0;
+
+                if (Math.abs(angleDiffAim) <= maxToleranceRad && !hasFriendBetween && activeBulletsCount < maxBulletsThreshold) {
                     this.shoot(this.rotation);
                 }
             }
@@ -152,6 +164,64 @@ export class EnemyAI extends Tank {
         if (this.y > bounds.bottom - margin) this.y = bounds.bottom - margin;
     }
 
+    /**
+     * 检查附近的子弹并进行躲避
+     */
+    private checkAndEvadeBullets() {
+        if (!this.gameContext) return;
+
+        const bullets = this.gameContext.getBullets();
+        if (!bullets) return;
+
+        const activeBullets = bullets.getChildren() as any[];
+        const evasionDistance = 80; // 躲避距离阈值
+        const escapeForce = 150; // 逃跑力度
+
+        for (const bullet of activeBullets) {
+            if (!bullet.active) continue;
+
+            const distance = Phaser.Math.Distance.Between(this.x, this.y, bullet.x, bullet.y);
+
+            if (distance < evasionDistance) {
+                // 计算子弹到坦克的方向向量
+                const dirX = this.x - bullet.x;
+                const dirY = this.y - bullet.y;
+                const len = Math.sqrt(dirX * dirX + dirY * dirY);
+
+                if (len > 0) {
+                    // 标准化方向向量
+                    const normDirX = dirX / len;
+                    const normDirY = dirY / len;
+
+                    // 计算逃跑方向
+                    const escapeVelX = normDirX * escapeForce;
+                    const escapeVelY = normDirY * escapeForce;
+
+                    // 设置目标位置，使AI朝该方向移动
+                    this.targetPos = {
+                        x: this.x + escapeVelX,
+                        y: this.y + escapeVelY
+                    };
+
+                    // 计算逃跑的角度
+                    const escapeAngle = Math.atan2(escapeVelY, escapeVelX);
+                    this.targetAngle = escapeAngle;
+
+                    // 设置移动速度
+                    this.desiredSpeed = this.moveSpeed * 1.2; // 稍快一点用于躲避
+
+                    // 暂时改变行为模式为躲避
+                    this.behavior = 'evade';
+
+                    // 躲避时暂停射击
+                    this.aimAngle = null;
+
+                    return; // 找到最近的威胁就立即反应
+                }
+            }
+        }
+    }
+
     /** 周期性 AI 决策逻辑（选择 chase/random/idle 等行为） */
     private aiLogic() {
         if (this.gameContext && !this.gameContext.isPlaying()) {
@@ -164,7 +234,7 @@ export class EnemyAI extends Tank {
 
         const player = this.gameContext ? this.gameContext.getPlayer() : null;
         const roll = Phaser.Math.Between(0, 100);
-        this.setVelocity(0);
+        this.setVelocity(0, 0);
         this.setAngularVelocity(0);
 
         if (roll < 65 && player) {

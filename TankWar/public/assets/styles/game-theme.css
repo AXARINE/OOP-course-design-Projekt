@@ -1,0 +1,45 @@
+:root {
+  /* 玩家坦克颜色 - 来自您提供的CSS样式 */
+  --player-color: #3f7f5f;          /* 坦克车身绿色 */
+  --player-turret-color: #4c8f68;   /* 炮塔绿色 */
+  --player-barrel-color: #333333;   /* 炮管颜色 */
+  
+  /* 敌方坦克颜色 - 采用对比色方案 */
+  --enemy-color: #8B4513;           /* 敌方坦克棕色（类似鞍色） */
+  --enemy-turret-color: #A52A2A;    /* 敌方炮塔红色（类似栗色） */
+  --enemy-barrel-color: #2F1B14;    /* 敌方炮管颜色 */
+  
+  /* 墙壁颜色 */
+  --wall-color: #5D4037;            /* 墙壁颜色（深棕色） */
+  --wall-border-color: #3E2723;     /* 墙壁边框颜色（更深的棕色） */
+  
+  /* 子弹颜色 */
+  --bullet-color: #000000;          /* 子弹颜色 */
+  
+  /* 背景颜色 */
+  --background-color: #e0c213;      /* 背景颜色  */
+  
+  /* 坦克尺寸参数 */
+  --tank-body-width: 30;             /* 坦克车身宽度 */
+  --tank-body-height: 28;            /* 坦克车身高度 */
+  --tank-body-offset-x: 2;           /* 坦克车身X轴偏移 */
+  --tank-body-offset-y: 2;           /* 坦克车身Y轴偏移 */
+  --tank-body-radius: 4;             /* 坦克车身圆角半径 */
+  
+  /* 炮塔参数 */
+  --turret-center-x: 16;             /* 炮塔中心X坐标 */
+  --turret-center-y: 16;             /* 炮塔中心Y坐标 */
+  --turret-radius: 10;               /* 炮塔半径 */
+  
+  /* 炮管参数 */
+  --barrel-length: 32;               /* 炮管长度 */
+  --barrel-width: 6;                 /* 炮管宽度 */
+  
+  /* 履带参数 */
+  --track-width: 38;                 /* 履带宽度 */
+  --track-height: 6;                 /* 履带高度 */
+  --top-track-offset-x: 0;           /* 上履带X偏移 */
+  --top-track-offset-y: 0;           /* 上履带Y偏移 */
+  --bottom-track-offset-x: 0;        /* 下履带X偏移 */
+  --bottom-track-offset-y: 24;       /* 下履带Y偏移 */
+}

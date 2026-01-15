@@ -4,7 +4,7 @@ import Phaser from 'phaser';
  * 子弹实体：处理发射、反弹与生命周期管理
  */
 export class Bullet extends Phaser.Physics.Arcade.Image {
-    private speed: number = 400;
+    private speed: number = 250; // 降低子弹速度，从400降到250
     private owner?: any; // 发射者引用，用于避免自伤或友伤
     private lifespanTimer?: Phaser.Time.TimerEvent | null = null;
     private prevX: number = 0;
@@ -23,15 +23,66 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
      * @param owner 发射者引用（用于碰撞过滤）
      */
     fire(x: number, y: number, rotation: number, owner?: any) {
+        // 计算发射位置
+        const spawnX = x + Math.cos(rotation) * 18; // 从坦克中心稍微往外一点的位置发射
+        const spawnY = y + Math.sin(rotation) * 18;
+
+        // 获取场景中的墙壁信息，确保子弹不在墙内生成
+        const sceneAny = this.scene as any;
+        const walls = sceneAny?.walls;
+        const tileSize: number = sceneAny?.tileSize ?? 32;
+
+        // 检查新位置是否在墙内，如果是，则调整位置
+        let safeSpawnX = spawnX;
+        let safeSpawnY = spawnY;
+
+        if (walls) {
+            const half = tileSize / 2;
+            const children = walls.getChildren() as any[];
+
+            for (const w of children) {
+                if (!w || !w.active) continue;
+
+                // 检查子弹是否在墙内
+                const wallLeft = w.x - half;
+                const wallRight = w.x + half;
+                const wallTop = w.y - half;
+                const wallBottom = w.y + half;
+
+                if (safeSpawnX >= wallLeft && safeSpawnX <= wallRight &&
+                    safeSpawnY >= wallTop && safeSpawnY <= wallBottom) {
+                    // 如果子弹在墙内，将其移到最近的墙外位置
+                    // 计算四个方向到墙边的距离
+                    const distToLeft = safeSpawnX - wallLeft;
+                    const distToRight = wallRight - safeSpawnX;
+                    const distToTop = safeSpawnY - wallTop;
+                    const distToBottom = wallBottom - safeSpawnY;
+
+                    // 找到最小距离的方向
+                    const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+
+                    if (minDist === distToLeft) {
+                        safeSpawnX = wallLeft - this.radius; // 左边
+                    } else if (minDist === distToRight) {
+                        safeSpawnX = wallRight + this.radius; // 右边
+                    } else if (minDist === distToTop) {
+                        safeSpawnY = wallTop - this.radius; // 上边
+                    } else { // distToBottom
+                        safeSpawnY = wallBottom + this.radius; // 下边
+                    }
+                }
+            }
+        }
+
         // 1. 激活子弹
-        this.enableBody(true, x, y, true, true);
+        this.enableBody(true, safeSpawnX, safeSpawnY, true, true);
         this.setActive(true);
         this.setVisible(true);
 
         // 记录发射者
         this.owner = owner;
-        this.prevX = x;
-        this.prevY = y;
+        this.prevX = safeSpawnX;
+        this.prevY = safeSpawnY;
 
         // 2. 设置角度和速度
         this.setRotation(rotation);
@@ -82,7 +133,8 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
         const tileSize: number = sceneAny?.tileSize ?? 32;
         const body = this.body as Phaser.Physics.Arcade.Body | undefined;
         if (!body || !walls) {
-            this.prevX = this.x; this.prevY = this.y;
+            this.prevX = this.x;
+            this.prevY = this.y;
             return;
         }
 
@@ -93,63 +145,97 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
         }
 
         const moveLine = new Phaser.Geom.Line(sx, sy, ex, ey);
-        let earliestDist = Number.POSITIVE_INFINITY;
-        let hitPoint: Phaser.Math.Vector2 | null = null;
-        let hitNormal: { nx: number; ny: number } | null = null;
+        let closestDistance = Number.POSITIVE_INFINITY;
+        let collisionPoint: Phaser.Math.Vector2 | null = null;
+        let collisionNormal: Phaser.Math.Vector2 | null = null;
 
-        const half = tileSize / 2;
-        const children = walls.getChildren() as any[];
-        for (const w of children) {
-            if (!w || !w.active) continue;
-            const rect = new Phaser.Geom.Rectangle(w.x - half, w.y - half, tileSize, tileSize);
-            const ips = Phaser.Geom.Intersects.GetLineToRectangle(moveLine, rect) as any[] | false;
-            if (ips && ips.length) {
-                for (const p of ips) {
-                    const dx = p.x - sx;
-                    const dy = p.y - sy;
-                    const dist = Math.hypot(dx, dy);
-                    if (dist < earliestDist) {
-                        earliestDist = dist;
-                        hitPoint = new Phaser.Math.Vector2(p.x, p.y);
+        const halfTile = tileSize / 2;
+        const wallChildren = walls.getChildren();
 
-                        const eps = 0.5;
-                        const onLeft = Math.abs(p.x - rect.left) < eps;
-                        const onRight = Math.abs(p.x - rect.right) < eps;
-                        const onTop = Math.abs(p.y - rect.top) < eps;
-                        const onBottom = Math.abs(p.y - rect.bottom) < eps;
-                        let nx = 0, ny = 0;
-                        if (onLeft) nx = -1; else if (onRight) nx = 1;
-                        if (onTop) ny = -1; else if (onBottom) ny = 1;
-                        if (nx === 0 && ny === 0) {
-                            const cx = w.x, cy = w.y;
-                            if (Math.abs(p.x - cx) > Math.abs(p.y - cy)) nx = Math.sign(p.x - cx); else ny = Math.sign(p.y - cy);
+        for (const wall of wallChildren) {
+            if (!wall || !wall.active) continue;
+
+            // 创建墙体的矩形区域
+            const wallRect = new Phaser.Geom.Rectangle(
+                wall.x - halfTile,
+                wall.y - halfTile,
+                tileSize,
+                tileSize
+            );
+
+            // 检测移动路径与墙体的交点
+            const intersectionPoints = Phaser.Geom.Intersects.GetLineToRectangle(moveLine, wallRect);
+            if (!intersectionPoints || !Array.isArray(intersectionPoints)) continue;
+
+            for (const point of intersectionPoints) {
+                // 计算从起点到交点的距离
+                const distance = Math.hypot(point.x - sx, point.y - sy);
+
+                // 找到最近的碰撞点
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    collisionPoint = new Phaser.Math.Vector2(point.x, point.y);
+
+                    // 计算碰撞法线（基于交点所在的边）
+                    const eps = 0.5;
+                    const isLeftEdge = Math.abs(point.x - wallRect.left) < eps;
+                    const isRightEdge = Math.abs(point.x - wallRect.right) < eps;
+                    const isTopEdge = Math.abs(point.y - wallRect.top) < eps;
+                    const isBottomEdge = Math.abs(point.y - wallRect.bottom) < eps;
+
+                    let normalX = 0, normalY = 0;
+
+                    // 优先考虑水平边（左右）
+                    if (isLeftEdge) normalX = -1;
+                    else if (isRightEdge) normalX = 1;
+
+                    // 其次考虑垂直边（上下）
+                    if (isTopEdge) normalY = -1;
+                    else if (isBottomEdge) normalY = 1;
+
+                    // 如果没有明确的边（角落情况），根据相对位置确定法线
+                    if (normalX === 0 && normalY === 0) {
+                        const dx = collisionPoint.x - wall.x;
+                        const dy = collisionPoint.y - wall.y;
+                        // 根据最大偏移量决定反弹方向
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            normalX = Math.sign(dx);
+                        } else {
+                            normalY = Math.sign(dy);
                         }
-                        hitNormal = { nx, ny };
                     }
+
+                    collisionNormal = new Phaser.Math.Vector2(normalX, normalY);
                 }
             }
         }
 
-        if (hitPoint && hitNormal) {
-            // 将子弹放到碰撞点外沿法线方向的安全位置
-            const push = this.radius + 0.5;
-            const newX = hitPoint.x + hitNormal.nx * push;
-            const newY = hitPoint.y + hitNormal.ny * push;
-            this.setPosition(newX, newY);
-            body.x = newX - (this.width || 0) / 2;
-            body.y = newY - (this.height || 0) / 2;
+        // 处理碰撞
+        if (collisionPoint && collisionNormal) {
+            // 将子弹定位到碰撞点外的安全位置
+            const safePush = this.radius + 0.5;
+            const safeX = collisionPoint.x + collisionNormal.x * safePush;
+            const safeY = collisionPoint.y + collisionNormal.y * safePush;
 
-            // 反射速度
-            const vx = body.velocity.x, vy = body.velocity.y;
-            const dot = vx * hitNormal.nx + vy * hitNormal.ny;
-            let rvx = vx - 2 * dot * hitNormal.nx;
-            let rvy = vy - 2 * dot * hitNormal.ny;
-            const restitution = 0.95;
-            rvx *= restitution; rvy *= restitution;
-            body.setVelocity(rvx, rvy);
+            this.setPosition(safeX, safeY);
+            body.x = safeX - (this.width || 0) / 2;
+            body.y = safeY - (this.height || 0) / 2;
+
+            // 计算反射速度
+            const velocityX = body.velocity.x;
+            const velocityY = body.velocity.y;
+
+            // 使用向量反射公式: v' = v - 2(v·n)n
+            const dotProduct = velocityX * collisionNormal.x + velocityY * collisionNormal.y;
+            const restitution = 0.95; // 能量损失系数
+
+            const reflectedVx = (velocityX - 2 * dotProduct * collisionNormal.x) * restitution;
+            const reflectedVy = (velocityY - 2 * dotProduct * collisionNormal.y) * restitution;
+
+            body.setVelocity(reflectedVx, reflectedVy);
         }
 
-        // 记录为下一帧起点
+        // 更新上一帧位置用于下一次检测
         this.prevX = this.x;
         this.prevY = this.y;
     }

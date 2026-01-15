@@ -31,6 +31,18 @@ export class Player extends Tank {
      */
     update() {
         if (!this.active) return;
+        
+        // 获取游戏上下文以检查游戏状态
+        const sceneAny = this.scene as any;
+        const gameContext = sceneAny.getGameContext ? sceneAny.getGameContext() : null;
+        
+        // 如果游戏未在进行中，则忽略输入
+        if (gameContext && !gameContext.isPlaying()) {
+            this.setVelocity(0, 0);
+            this.setAngularVelocity(0);
+            return;
+        }
+        
         // 调试输出（每30帧）
         this.debugTick++;
         if (this.debugTick % 30 === 0) {
@@ -78,5 +90,8 @@ export class Player extends Tank {
         if (this.keySpace.isDown) {
             this.shoot();
         }
+
+        // 校正位置，防止坦克进入墙壁内部
+        this.adjustPositionWithinBounds();
     }
 }

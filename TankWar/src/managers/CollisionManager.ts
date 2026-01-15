@@ -21,7 +21,15 @@ export class CollisionManager {
         enemies: Phaser.Physics.Arcade.Group,
         walls: Phaser.Physics.Arcade.StaticGroup
     ): void {
+        // 确保墙壁具有正确的物理属性
+        walls.children.entries.forEach(wall => {
+            (wall as Phaser.Physics.Arcade.Sprite).setImmovable(true);
+            // 移除对静态对象调用setCollideWorldBounds的错误操作
+        });
+
+        // 为玩家和墙壁设置碰撞
         this.scene.physics.add.collider(player, walls);
+        // 为敌人和墙壁设置碰撞
         this.scene.physics.add.collider(enemies, walls);
     }
 
@@ -48,11 +56,7 @@ export class CollisionManager {
             const e: any = enemy;
             const owner: any = b.getOwner && b.getOwner();
 
-            // 忽略自伤
-            if (owner && owner === e) {
-                return;
-            }
-
+            // 移除所有伤害限制，允许任何子弹伤害任何目标，包括发射者
             b.deactivate();
 
             if (typeof e.takeDamage === 'function') {
@@ -75,18 +79,8 @@ export class CollisionManager {
     ): void {
         this.scene.physics.add.overlap(bullets, player, (playerObj, bullet) => {
             const b = bullet as Bullet;
-            const owner: any = b.getOwner && b.getOwner();
 
-            // 过滤同队伤害
-            if (owner && owner.team && (playerObj as any).team && owner.team === (playerObj as any).team) {
-                return;
-            }
-
-            // 过滤自伤
-            if (owner && owner === playerObj) {
-                return;
-            }
-
+            // 允许任何子弹伤害玩家，包括玩家自己的子弹（自伤）
             b.deactivate();
             (playerObj as Player).takeDamage();
             onPlayerHit();

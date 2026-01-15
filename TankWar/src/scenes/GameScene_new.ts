@@ -28,43 +28,224 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
     }
 
     preload() {
-        const graphics = this.make.graphics({ x: 0, y: 0 });
+        // 加载游戏主题CSS文件以获取颜色配置
+        this.load.css('game-theme', 'assets/styles/game-theme.css');
 
-        // 玩家贴图
-        graphics.fillStyle(0x00ff00);
-        graphics.fillRect(0, 0, 32, 32);
-        graphics.fillStyle(0x0000ff);
-        graphics.fillRect(16, 12, 16, 8);
-        graphics.generateTexture('tank-texture', 32, 32);
-        graphics.clear();
+        // 尝试加载自定义纹理
+        this.load.image('custom-tank-texture', 'assets/textures/tank-texture.png');
+        this.load.image('custom-enemy-texture', 'assets/textures/enemy-texture.png');
+        this.load.image('custom-wall-texture', 'assets/textures/wall-texture.png');
+        this.load.image('custom-bullet-texture', 'assets/textures/bullet-texture.png');
 
-        // 敌人贴图
-        graphics.fillStyle(0xff0000);
-        graphics.fillRect(0, 0, 32, 32);
-        graphics.fillStyle(0xffffff);
-        graphics.fillRect(16, 12, 16, 8);
-        graphics.generateTexture('enemy-texture', 32, 32);
-        graphics.clear();
+        // 监听加载完成事件
+        this.load.on('complete', () => {
+            this.generateTextures();
+        });
 
-        // 墙壁贴图
-        graphics.fillStyle(0xbcae76);
-        graphics.fillRect(0, 0, 32, 32);
-        graphics.lineStyle(2, 0x000000);
-        graphics.strokeRect(0, 0, 32, 32);
-        graphics.generateTexture('wall-texture', 32, 32);
-        graphics.clear();
+        // 开始加载
+        this.load.start();
+    }
 
-        // 子弹贴图
-        graphics.fillStyle(0xffff00);
-        graphics.fillCircle(4, 4, 4);
-        graphics.generateTexture('bullet-texture', 8, 8);
+    private getCSSVariable(variableName: string, defaultValue: string): string {
+        // 获取根元素上的CSS变量值
+        const value = getComputedStyle(document.documentElement)
+            .getPropertyValue(variableName)
+            .trim();
 
-        graphics.destroy();
+        // 如果值存在，则返回该值，否则返回默认值
+        return value || defaultValue;
+    }
+    
+    private getCSSVariableAsNumber(variableName: string, defaultValue: number): number {
+        // 获取CSS变量并转换为数字
+        const value = this.getCSSVariable(variableName, String(defaultValue));
+        return Number(value) || defaultValue;
+    }
+    
+    private hexToNumber(hex: string): number {
+        // 移除 # 符号并转换为数字
+        if (hex.startsWith('#')) {
+            hex = hex.substring(1);
+        }
+        return parseInt(hex, 16);
+    }
+
+    private generateTextures(): void {
+        // 尝试从自定义图片生成纹理，如果不存在则使用CSS变量或默认值生成
+        if (!this.textures.exists('tank-texture')) {
+            if (this.textures.exists('custom-tank-texture')) {
+                this.textures.renameTexture('custom-tank-texture', 'tank-texture');
+            } else {
+                // 使用CSS变量生成玩家坦克纹理
+                const playerColor = this.hexToNumber(this.getCSSVariable('--player-color', '#00ff00'));
+                const playerTurretColor = this.hexToNumber(this.getCSSVariable('--player-turret-color', '#0000ff'));
+                const playerBarrelColor = this.hexToNumber(this.getCSSVariable('--player-barrel-color', '#333333'));
+
+                // 从CSS变量获取坦克参数
+                const tankBodyWidth = this.getCSSVariableAsNumber('--tank-body-width', 30);
+                const tankBodyHeight = this.getCSSVariableAsNumber('--tank-body-height', 28);
+                const tankBodyOffsetX = this.getCSSVariableAsNumber('--tank-body-offset-x', 2);
+                const tankBodyOffsetY = this.getCSSVariableAsNumber('--tank-body-offset-y', 2);
+                const tankBodyRadius = this.getCSSVariableAsNumber('--tank-body-radius', 4);
+                
+                const turretCenterX = this.getCSSVariableAsNumber('--turret-center-x', 16);
+                const turretCenterY = this.getCSSVariableAsNumber('--turret-center-y', 16);
+                const turretRadius = this.getCSSVariableAsNumber('--turret-radius', 10);
+                
+                const barrelLength = this.getCSSVariableAsNumber('--barrel-length', 32);
+                const barrelWidth = this.getCSSVariableAsNumber('--barrel-width', 6);
+                
+                const trackWidth = this.getCSSVariableAsNumber('--track-width', 38);
+                const trackHeight = this.getCSSVariableAsNumber('--track-height', 6);
+                const topTrackOffsetX = this.getCSSVariableAsNumber('--top-track-offset-x', 0);
+                const topTrackOffsetY = this.getCSSVariableAsNumber('--top-track-offset-y', 0);
+                const bottomTrackOffsetX = this.getCSSVariableAsNumber('--bottom-track-offset-x', 0);
+                const bottomTrackOffsetY = this.getCSSVariableAsNumber('--bottom-track-offset-y', 24);
+
+                const graphics = this.make.graphics({ x: 0, y: 0 });
+
+                // 绘制坦克车身 - 旋转90度以使坦克朝右
+                // fillRoundedRect(x坐标, y坐标, 宽度, 高度, 圆角半径)
+                graphics.fillStyle(playerColor);
+                graphics.fillRoundedRect(tankBodyOffsetX, tankBodyOffsetY, tankBodyWidth, tankBodyHeight, tankBodyRadius); // 主体
+
+                // 添加边框效果
+                // strokeRoundedRect(x坐标, y坐标, 宽度, 高度, 圆角半径)
+                graphics.lineStyle(2, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 线条宽度2，颜色
+                graphics.strokeRoundedRect(tankBodyOffsetX, tankBodyOffsetY, tankBodyWidth, tankBodyHeight, tankBodyRadius); // 描边
+
+                // 绘制履带
+                graphics.fillStyle(this.hexToNumber('#111111')); // 履带颜色固定为深色
+                graphics.fillRect(topTrackOffsetX, topTrackOffsetY, trackWidth, trackHeight); // 上履带
+                graphics.fillRect(bottomTrackOffsetX, bottomTrackOffsetY, trackWidth, trackHeight); // 下履带
+
+                // 绘制炮塔 - 精确居中
+                graphics.fillStyle(playerTurretColor);
+                graphics.fillCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔
+
+                // 添加炮塔边框效果
+                graphics.lineStyle(1, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 边框线条宽度1，颜色
+                graphics.strokeCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔边框
+
+                // 绘制炮管 - 从炮塔中心向右延伸
+                graphics.fillStyle(playerBarrelColor);
+                graphics.fillRect(turretCenterX, turretCenterY - barrelWidth / 2, barrelLength, barrelWidth); // 炮管，从炮塔中心向右延伸
+
+                graphics.generateTexture('tank-texture', 32, 32); // 生成32x32像素的纹理
+                graphics.clear();
+                graphics.destroy();
+            }
+        }
+
+        if (!this.textures.exists('enemy-texture')) {
+            if (this.textures.exists('custom-enemy-texture')) {
+                this.textures.renameTexture('custom-enemy-texture', 'enemy-texture');
+            } else {
+                // 使用CSS变量生成敌人坦克纹理
+                const enemyColor = this.hexToNumber(this.getCSSVariable('--enemy-color', '#ff0000'));
+                const enemyTurretColor = this.hexToNumber(this.getCSSVariable('--enemy-turret-color', '#ffffff'));
+                const enemyBarrelColor = this.hexToNumber(this.getCSSVariable('--enemy-barrel-color', '#333333'));
+
+                // 从CSS变量获取坦克参数
+                const tankBodyWidth = this.getCSSVariableAsNumber('--tank-body-width', 30);
+                const tankBodyHeight = this.getCSSVariableAsNumber('--tank-body-height', 28);
+                const tankBodyOffsetX = this.getCSSVariableAsNumber('--tank-body-offset-x', 2);
+                const tankBodyOffsetY = this.getCSSVariableAsNumber('--tank-body-offset-y', 2);
+                const tankBodyRadius = this.getCSSVariableAsNumber('--tank-body-radius', 4);
+                
+                const turretCenterX = this.getCSSVariableAsNumber('--turret-center-x', 16);
+                const turretCenterY = this.getCSSVariableAsNumber('--turret-center-y', 16);
+                const turretRadius = this.getCSSVariableAsNumber('--turret-radius', 10);
+                
+                const barrelLength = this.getCSSVariableAsNumber('--barrel-length', 32);
+                const barrelWidth = this.getCSSVariableAsNumber('--barrel-width', 6);
+                
+                const trackWidth = this.getCSSVariableAsNumber('--track-width', 38);
+                const trackHeight = this.getCSSVariableAsNumber('--track-height', 6);
+                const topTrackOffsetX = this.getCSSVariableAsNumber('--top-track-offset-x', 0);
+                const topTrackOffsetY = this.getCSSVariableAsNumber('--top-track-offset-y', 0);
+                const bottomTrackOffsetX = this.getCSSVariableAsNumber('--bottom-track-offset-x', 0);
+                const bottomTrackOffsetY = this.getCSSVariableAsNumber('--bottom-track-offset-y', 24);
+
+                const graphics = this.make.graphics({ x: 0, y: 0 });
+
+                // 绘制敌方坦克车身 - 旋转90度以使坦克朝右
+                // fillRoundedRect(x坐标, y坐标, 宽度, 高度, 圆角半径)
+                graphics.fillStyle(enemyColor);
+                graphics.fillRoundedRect(tankBodyOffsetX, tankBodyOffsetY, tankBodyWidth, tankBodyHeight, tankBodyRadius); // 主体
+
+                // 添加边框效果
+                // strokeRoundedRect(x坐标, y坐标, 宽度, 高度, 圆角半径)
+                graphics.lineStyle(2, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 线条宽度2，颜色
+                graphics.strokeRoundedRect(tankBodyOffsetX, tankBodyOffsetY, tankBodyWidth, tankBodyHeight, tankBodyRadius); // 描边
+
+                // 绘制履带
+                graphics.fillStyle(this.hexToNumber('#111111')); // 履带颜色固定为深色
+                graphics.fillRect(topTrackOffsetX, topTrackOffsetY, trackWidth, trackHeight); // 上履带
+                graphics.fillRect(bottomTrackOffsetX, bottomTrackOffsetY, trackWidth, trackHeight); // 下履带
+
+                // 绘制敌方炮塔 - 精确居中
+                graphics.fillStyle(enemyTurretColor);
+                graphics.fillCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔
+
+                // 添加炮塔边框效果
+                graphics.lineStyle(1, this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'))); // 边框线条宽度1，颜色
+                graphics.strokeCircle(turretCenterX, turretCenterY, turretRadius); // 炮塔边框
+
+                // 绘制敌方炮管 - 从炮塔中心向右延伸
+                graphics.fillStyle(enemyBarrelColor);
+                graphics.fillRect(turretCenterX, turretCenterY - barrelWidth / 2, barrelLength, barrelWidth); // 炮管，从炮塔中心向右延伸
+
+                graphics.generateTexture('enemy-texture', 32, 32); // 生成32x32像素的纹理
+                graphics.clear();
+                graphics.destroy();
+            }
+        }
+
+        if (!this.textures.exists('wall-texture')) {
+            if (this.textures.exists('custom-wall-texture')) {
+                this.textures.renameTexture('custom-wall-texture', 'wall-texture');
+            } else {
+                // 使用CSS变量生成墙壁纹理
+                const wallColor = this.hexToNumber(this.getCSSVariable('--wall-color', '#bcae76'));
+                const wallBorderColor = this.hexToNumber(this.getCSSVariable('--wall-border-color', '#000000'));
+
+                const graphics = this.make.graphics({ x: 0, y: 0 });
+                graphics.fillStyle(wallColor);
+                graphics.fillRect(0, 0, 32, 32);
+                graphics.lineStyle(2, wallBorderColor);
+                graphics.strokeRect(0, 0, 32, 32);
+                graphics.generateTexture('wall-texture', 32, 32);
+                graphics.clear();
+                graphics.destroy();
+            }
+        }
+
+        if (!this.textures.exists('bullet-texture')) {
+            if (this.textures.exists('custom-bullet-texture')) {
+                this.textures.renameTexture('custom-bullet-texture', 'bullet-texture');
+            } else {
+                // 使用CSS变量生成子弹纹理
+                const bulletColor = this.hexToNumber(this.getCSSVariable('--bullet-color', '#ffff00'));
+
+                const graphics = this.make.graphics({ x: 0, y: 0 });
+                graphics.fillStyle(bulletColor);
+                graphics.fillCircle(4, 4, 4);
+                graphics.generateTexture('bullet-texture', 8, 8);
+                graphics.destroy();
+            }
+        }
     }
 
     create() {
-        this.add.rectangle(400, 300, 800, 600, 0x000000);
+        // 使用CSS变量设置背景颜色
+        const bgColor = this.getCSSVariable('--background-color', '#000000');
+        this.add.rectangle(400, 300, 800, 600, this.hexToNumber(bgColor));
         this.physics.world.setFPS(120);
+        
+        // 设置物理世界的边界
+        this.physics.world.setBounds(0, 0, 800, 600);
+        this.physics.world.setBoundsCollision(true, true, true, true);
 
         // 初始化所有管理器
         this.initManagers();
@@ -78,6 +259,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
             this.stateManager,
             () => this.entityManager.getPlayer(),
             () => this.entityManager.getEnemies().getChildren() as any[],
+            () => this.entityManager.getBullets(), // 添加获取子弹组的函数
             (shooter, tx, ty, margin) => this.collisionManager.hasFriendlyBetween(
                 shooter, tx, ty, this.entityManager.getEnemies(), margin
             )
@@ -99,6 +281,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
 
         // 创建调试绘制
         this.debugManager.create();
+        /*
         this.debugManager.draw(
             this.mapManager.getGrid(),
             this.mapManager['gridWidth'],
@@ -106,6 +289,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
             this.mapManager.getTileSize(),
             this.entityManager.getEnemies()
         );
+        */
 
         // 生成敌人
         const enemyCount = Phaser.Math.Between(2, 5);
@@ -195,7 +379,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
     }
 
     private handleRestartGame(): void {
-        if (this.stateManager.getState() === 'ENDED') {
+        if (this.stateManager.getState() === 'ENDED' || this.stateManager.getState() === 'WIN') {
             this.scene.restart();
         }
     }
@@ -211,7 +395,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
 
     private handleAllEnemiesDead(): void {
         if (this.stateManager.isPlaying()) {
-            this.stateManager.setState('ENDED');
+            this.stateManager.setState('WIN');
         }
     }
 
@@ -226,7 +410,8 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
             this.entityManager.updatePlayer();
         }
 
-        // 定期刷新调试绘制
+        // 定期刷新调试绘制 - 已禁用
+        /*
         if (this.debugTick % 10 === 0) {
             this.debugManager.draw(
                 this.mapManager.getGrid(),
@@ -236,6 +421,7 @@ export class GameScene extends Phaser.Scene implements GameStateListener {
                 this.entityManager.getEnemies()
             );
         }
+        */
     }
 
     // 为Enemy类提供游戏上下文（向后兼容）

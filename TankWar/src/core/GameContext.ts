@@ -17,6 +17,7 @@ export interface IGameContext {
     // 实体查询
     getPlayer(): any;
     getEnemies(): any[];
+    getBullets(): any; // 添加获取子弹组的方法
 
     // 友军检测
     hasFriendlyBetween(shooter: any, tx: number, ty: number, margin?: number): boolean;
@@ -27,6 +28,7 @@ export class GameContext implements IGameContext {
     private stateManager: GameStateManager;
     private getPlayerFn: () => any;
     private getEnemiesFn: () => any[];
+    private getBulletsFn: () => any; // 添加子弹获取函数
     private hasFriendlyBetweenFn: (shooter: any, tx: number, ty: number, margin?: number) => boolean;
 
     constructor(
@@ -34,12 +36,14 @@ export class GameContext implements IGameContext {
         stateManager: GameStateManager,
         getPlayerFn: () => any,
         getEnemiesFn: () => any[],
+        getBulletsFn: () => any, // 添加子弹获取函数
         hasFriendlyBetweenFn: (shooter: any, tx: number, ty: number, margin?: number) => boolean
     ) {
         this.mapManager = mapManager;
         this.stateManager = stateManager;
         this.getPlayerFn = getPlayerFn;
         this.getEnemiesFn = getEnemiesFn;
+        this.getBulletsFn = getBulletsFn; // 保存子弹获取函数
         this.hasFriendlyBetweenFn = hasFriendlyBetweenFn;
     }
 
@@ -65,6 +69,10 @@ export class GameContext implements IGameContext {
 
     getEnemies(): any[] {
         return this.getEnemiesFn();
+    }
+
+    getBullets(): any { // 实现获取子弹的方法
+        return this.getBulletsFn();
     }
 
     hasFriendlyBetween(shooter: any, tx: number, ty: number, margin?: number): boolean {

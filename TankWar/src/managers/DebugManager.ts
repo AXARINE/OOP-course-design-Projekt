@@ -7,8 +7,8 @@ import Phaser from 'phaser';
 export class DebugManager {
     private scene: Phaser.Scene;
     private graphics!: Phaser.GameObjects.Graphics;
-    private showGrid: boolean = true;
-    private showPaths: boolean = true;
+    private showGrid: boolean = false;  // 关闭网格显示
+    private showPaths: boolean = false; // 关闭路径显示
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;

@@ -11,6 +11,7 @@ export class UIManager {
     private seedText!: Phaser.GameObjects.Text;
     private overlayStart!: Phaser.GameObjects.Container;
     private overlayEnd!: Phaser.GameObjects.Container;
+    private overlayWin!: Phaser.GameObjects.Container;
     private screenWidth: number;
     private screenHeight: number;
 
@@ -39,15 +40,24 @@ export class UIManager {
         // 覆盖式开始界面
         this.overlayStart = this.buildOverlay(
             '坦克大战',
-            '按 Enter 开始\n移动: 方向键 / 射击: 空格'
+            '按 Enter 开始游戏\n移动: 方向键 / 射击: 空格',
+            '#ffffff' // 白色标题
         );
-        // 覆盖式结束界面
+        // 覆盖式结束界面 - 失败（红色标题）
         this.overlayEnd = this.buildOverlay(
-            '游戏结束',
-            '按 R 重启'
+            'YOU DIED',
+            '玩家阵亡！\n按 R 重新开始',
+            '#d81515' // 红色标题
+        );
+        // 覆盖式胜利界
+        this.overlayWin = this.buildOverlay(
+            'ENEMY FELLED',
+            '所有敌人已消灭！\n按 R 重新开始',
+            '#fffb00'
         );
         this.overlayStart.setVisible(true);
         this.overlayEnd.setVisible(false);
+        this.overlayWin.setVisible(false);
         this.hpText.setVisible(false);
         this.seedText.setVisible(false);
     }
@@ -56,7 +66,9 @@ export class UIManager {
      * 更新血量显示
      */
     updateHP(hp: number): void {
-        this.hpText.setText(`HP: ${hp}`);
+        // 为了更好的用户体验，当血量为0时显示为1，因为0血量意味着角色已死亡
+        const displayHP = Math.max(1, hp);
+        this.hpText.setText(`HP: ${displayHP}`);
         if (hp <= 1) {
             this.hpText.setColor('#ff0000');
         } else {
@@ -81,6 +93,7 @@ export class UIManager {
             case 'START':
                 this.showOverlay(this.overlayStart);
                 this.hideOverlay(this.overlayEnd);
+                this.hideOverlay(this.overlayWin);
                 this.hpText.setVisible(false);
                 this.seedText.setVisible(false);
                 this.hpText.setText('HP: 3');
@@ -89,12 +102,21 @@ export class UIManager {
             case 'PLAYING':
                 this.hideOverlay(this.overlayStart);
                 this.hideOverlay(this.overlayEnd);
+                this.hideOverlay(this.overlayWin);
                 this.hpText.setVisible(true);
                 this.seedText.setVisible(true);
                 break;
             case 'ENDED':
                 this.hideOverlay(this.overlayStart);
                 this.showOverlay(this.overlayEnd);
+                this.hideOverlay(this.overlayWin);
+                this.hpText.setVisible(false);
+                this.seedText.setVisible(false);
+                break;
+            case 'WIN':
+                this.hideOverlay(this.overlayStart);
+                this.hideOverlay(this.overlayEnd);
+                this.showOverlay(this.overlayWin);
                 this.hpText.setVisible(false);
                 this.seedText.setVisible(false);
                 break;
@@ -133,9 +155,12 @@ export class UIManager {
         if (this.overlayEnd) {
             this.overlayEnd.destroy(true);
         }
+        if (this.overlayWin) {
+            this.overlayWin.destroy(true);
+        }
     }
 
-    private buildOverlay(title: string, subtitle: string): Phaser.GameObjects.Container {
+    private buildOverlay(title: string, subtitle: string, titleColor: string = '#ffffff'): Phaser.GameObjects.Container {
         const bg = this.scene.add.rectangle(
             this.screenWidth / 2,
             this.screenHeight / 2,
@@ -150,8 +175,8 @@ export class UIManager {
             this.screenHeight / 2 - 30,
             title,
             {
-                fontSize: '42px',
-                color: '#ffffff',
+                fontSize: '48px', // 增大标题字体
+                color: titleColor, // 使用传入的颜色
                 fontStyle: 'bold'
             }
         ).setOrigin(0.5);
@@ -161,7 +186,7 @@ export class UIManager {
             this.screenHeight / 2 + 25,
             subtitle,
             {
-                fontSize: '22px',
+                fontSize: '24px', // 增大副标题字体
                 color: '#c0c0c0',
                 align: 'center'
             }

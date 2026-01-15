@@ -2,7 +2,7 @@
  * 游戏状态管理器
  * 负责管理游戏状态的转换和状态相关的逻辑
  */
-export type GameState = 'START' | 'PLAYING' | 'ENDED';
+export type GameState = 'START' | 'PLAYING' | 'ENDED' | 'WIN';
 
 export interface GameStateListener {
     onStateChange(newState: GameState, oldState: GameState): void;
@@ -33,7 +33,7 @@ export class GameStateManager {
     }
 
     isEnded(): boolean {
-        return this.currentState === 'ENDED';
+        return this.currentState === 'ENDED' || this.currentState === 'WIN';
     }
 
     addListener(listener: GameStateListener): void {

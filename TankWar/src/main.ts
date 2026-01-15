@@ -10,10 +10,10 @@ const config: Phaser.Types.Core.GameConfig = {
   width: 800,
   height: 600,
   parent: 'app',
-  backgroundColor: '#000000',
+  backgroundColor: '#FFFFFF',
   physics: {
     default: 'arcade',
-    arcade: { gravity: { x: 0, y: 0 }, debug: true }
+    arcade: { gravity: { x: 0, y: 0 }, debug: false }
   },
   scene: [GameScene]
 };
