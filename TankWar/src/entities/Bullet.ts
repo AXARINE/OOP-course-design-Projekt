@@ -239,4 +239,4 @@ export class Bullet extends Phaser.Physics.Arcade.Image {
         this.prevX = this.x;
         this.prevY = this.y;
     }
-}
+}//物理实现逻辑由ai辅助修改和增添代码实现

@@ -2,7 +2,7 @@ export type Grid = number[][]; // 0 = free, 1 = blocked
 
 export interface Node { x: number; y: number; g: number; f: number; parent?: Node }
 
-// 简单的 A*，使用 8 邻域
+// 简单的 A*，使用 8 邻域,使用ai辅助完成，解决敌方坦克太笨的问题
 export function findPath(grid: Grid, start: { x: number, y: number }, goal: { x: number, y: number }): Array<{ x: number, y: number }> | null {
     const h = (a: { x: number, y: number }, b: { x: number, y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 
